@@ -14,8 +14,11 @@ def create_app():
     app.config.from_object(Config)
 
 
-    # Add this line below app creation
-    CORS(app, supports_credentials=True, origins=["http://localhost:3000"], expose_headers=["Authorization"])
+    CORS(app, supports_credentials=True, origins=[
+    "http://localhost:3000", 
+    "https://attendance-frontend-woad.vercel.app"
+], expose_headers=["Authorization"])
+
 
     # Initialize extensions
     jwt.init_app(app)
