@@ -60,8 +60,6 @@ from ..models.user import get_user_by_email
 employee_bp = Blueprint("employee", __name__)  
 
 
-
-
 @employee_bp.route("/profile", methods=["GET"])
 @jwt_required()
 def employee_profile():
@@ -74,10 +72,12 @@ def employee_profile():
     return jsonify({
         "name": user.get("name"),
         "email": user.get("email"),
-        "department": user.get("department"),
         "position": user.get("position"),
-        "join_date": user.get("join_date"),
+        "department": user.get("department"),
+        "blood_group": user.get("blood_group", "Not Provided"),  # ✅ added this line
+        "join_date": user.get("join_date")
     }), 200
+
 
 
 @employee_bp.route("/summary", methods=["GET"])
