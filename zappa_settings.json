@@ -1,0 +1,17 @@
+{
+    "dev": {
+        "app_function": "wsgi.app",
+        "aws_region": "us-east-1",
+        "profile_name": "default",
+        "project_name": "attendance-backend",
+        "runtime": "python3.9",
+        "s3_bucket": "zappa-attendance-bucket",
+        "timeout_seconds": 300,
+        "memory_size": 512,
+        "environment_variables": {
+            "FLASK_ENV": "production",
+            "MONGO_URI": "your_mongodb_uri",
+            "JWT_SECRET_KEY": "your_jwt_secret_key"
+        }
+    }
+}
