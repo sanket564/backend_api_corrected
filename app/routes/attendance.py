@@ -53,12 +53,12 @@ def checkin():
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    doj = datetime.strptime(user.get("doj"), "%Y-%m-%d").date()
+    join_date = datetime.strptime(user.get("join_date"), "%Y-%m-%d").date()
 
     # Date validations
     if checkin_date != today:
         return jsonify({"msg": "Check-in is only allowed for today"}), 400
-    if checkin_date < doj:
+    if checkin_date < join_date:
         return jsonify({"msg": "Check-in date cannot be before Date of Joining"}), 400
     if checkin_date > today:
         return jsonify({"msg": "Check-in date cannot be in the future"}), 400
@@ -129,13 +129,13 @@ def checkout():
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    doj = datetime.strptime(user.get("doj"), "%Y-%m-%d").date()
+    join_date = datetime.strptime(user.get("join_date"), "%Y-%m-%d").date()
     checkout_date = checkout_dt.date()
     today = datetime.now().date()
 
     if checkout_date != today:
         return jsonify({"msg": "Checkout is only allowed for today"}), 400
-    if checkout_date < doj:
+    if checkout_date < join_date:
         return jsonify({"msg": "Checkout date cannot be before Date of Joining"}), 400
     if checkout_date > today:
         return jsonify({"msg": "Checkout date cannot be in the future"}), 400
