@@ -5,6 +5,10 @@ from datetime import datetime
 import csv, io, os
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+import pandas as pd
+import os
+import csv
+
 
 from app.extensions import mongo
 
@@ -131,30 +135,43 @@ def upload_attendance():
 
     filename = secure_filename(file.filename)
     filepath = os.path.join("uploads", filename)
-    file.save(filepath)  # 💾 Save the file temporarily
+    file.save(filepath)  # Save temporarily
 
+    entries = []
     try:
-        with open(filepath, 'r') as f:
-            reader = csv.DictReader(f)
-            entries = []
-            for row in reader:
-                # Parse each CSV row and prepare MongoDB entries
+        if filename.endswith(".csv"):
+            with open(filepath, 'r') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    entry = {
+                        "email": row["email"].strip(),
+                        "date": row["date"].strip(),
+                        "checkin": datetime.strptime(row["checkin"], "%I:%M %p") if row["checkin"] else None,
+                        "checkout": datetime.strptime(row["checkout"], "%I:%M %p") if row["checkout"] else None
+                    }
+                    entries.append(entry)
+
+        elif filename.endswith(".xlsx"):
+            df = pd.read_excel(filepath)
+            for _, row in df.iterrows():
                 entry = {
-                    "email": row["email"].strip(),
-                    "date": row["date"].strip(),  # keep as string YYYY-MM-DD
-                    "checkin": datetime.strptime(row["checkin"], "%I:%M %p") if row["checkin"] else None,
-                    "checkout": datetime.strptime(row["checkout"], "%I:%M %p") if row["checkout"] else None
+                    "email": str(row["email"]).strip(),
+                    "date": str(row["date"]).strip(),
+                    "checkin": datetime.strptime(row["checkin"], "%I:%M %p") if pd.notna(row["checkin"]) else None,
+                    "checkout": datetime.strptime(row["checkout"], "%I:%M %p") if pd.notna(row["checkout"]) else None
                 }
                 entries.append(entry)
+        else:
+            return jsonify({"msg": "Unsupported file type"}), 400
 
-            if entries:
-                logs_col.insert_many(entries)  # 🗃️ Insert into your MongoDB collection
+        if entries:
+            logs_col.insert_many(entries)
 
     except Exception as e:
-        print("Error processing CSV:", e)
+        print("Error processing file:", e)
         return jsonify({"msg": "Failed to process file"}), 500
     finally:
-        os.remove(filepath)  # 🧹 Clean up: remove uploaded file after processing
+        os.remove(filepath)
 
     return jsonify({"msg": "Attendance uploaded and processed successfully"}), 200
 
