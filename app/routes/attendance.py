@@ -57,7 +57,7 @@ attendance_bp = Blueprint("attendance", __name__)
 #     logs_col.update_one({"_id": log["_id"]}, {"$set": {"checkout": checkout_dt}})
 #     return jsonify({"msg": "Checked out successfully"}), 200
 
-@app.route("/attendance/checkin", methods=["POST"])
+@attendance_bp.route("/attendance/checkin", methods=["POST"])
 @jwt_required()
 def checkin():
     email = get_jwt_identity()
@@ -95,7 +95,7 @@ def checkin():
 
 
 
-@app.route("/attendance/checkout", methods=["POST"])
+@attendance_bp.route("/attendance/checkout", methods=["POST"])
 @jwt_required()
 def checkout():
     email = get_jwt_identity()
