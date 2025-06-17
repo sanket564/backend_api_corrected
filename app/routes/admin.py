@@ -211,7 +211,7 @@ def total_employees():
 def add_employee():
     users_col = mongo.db.users
     data = request.get_json()
-    required = ("name", "email", "password", "doj")
+    required = ("name", "email", "password", "join_date")
     
     if not all(k in data for k in required):
         return jsonify({"msg": "Missing required fields"}), 400
