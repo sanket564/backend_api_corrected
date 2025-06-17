@@ -74,7 +74,7 @@ def employee_profile():
         "email": user.get("email"),
         "position": user.get("position"),
         "department": user.get("department"),
-        "blood_group": user.get("blood_group", "Not Provided"),  # ✅ added this line
+        "bloodGroup": user.get("bloodGroup", "Not Provided"),  # ✅ added this line
         "join_date": user.get("join_date")
     }), 200
 
