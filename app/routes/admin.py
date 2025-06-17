@@ -214,7 +214,7 @@ def add_employee():
         "join_date": data["doj"],
         "department": data.get("department", "Not Assigned"),
         "position": data.get("position", "Not Assigned"),
-        "blood_group": data.get("blood_group", "Not Provided")  # Added field
+        "bloodGroup": data.get("bloodGroup", "Not Provided")  # Added field
     })
     
     return jsonify({"msg": "Employee added successfully"}), 201
