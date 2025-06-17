@@ -226,7 +226,7 @@ def add_employee():
         "email": data["email"],
         "password": hashed_password,
         "role": "employee",
-        "join_date": data["doj"],
+        "join_date": data["join_date"],
         "department": data.get("department", "Not Assigned"),
         "position": data.get("position", "Not Assigned"),
         "bloodGroup": data.get("bloodGroup", "Not Provided")  # Added field
