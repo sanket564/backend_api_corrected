@@ -177,6 +177,48 @@ def get_pending_checkins():
 #     pending_checkins_col.update_one({"_id": checkin["_id"]}, {"$set": {"status": "Approved"}})
 #     return jsonify({"msg": "Check-in approved"}), 200
 
+# @admin_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
+# @jwt_required()
+# def approve_checkin(checkin_id):
+#     users_col = mongo.db.users
+#     pending_checkins_col = mongo.db.pending_checkins
+#     logs_col = mongo.db.logs
+
+#     email = get_jwt_identity()
+#     admin = users_col.find_one({"email": email})
+#     if not admin or admin["role"] != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     checkin = pending_checkins_col.find_one({"_id": ObjectId(checkin_id)})
+#     if not checkin:
+#         return jsonify({"msg": "Check-in request not found"}), 404
+
+#     checkin_dt = checkin.get("requested_at")
+#     if not checkin_dt:
+#         return jsonify({"msg": "Invalid check-in time"}), 400
+
+#     date_str = checkin["date"]
+#     time_str = checkin_dt.strftime("%H:%M")  # Save time in 24-hour format
+
+#     existing = logs_col.find_one({"email": checkin["email"], "date": date_str})
+#     if existing:
+#         return jsonify({"msg": "Employee already has a check-in for this date"}), 400
+
+#     logs_col.insert_one({
+#         "email": checkin["email"],
+#         "date": date_str,
+#         "checkin": time_str,
+#         "checkout": None,
+#         "approved": True
+#     })
+
+#     pending_checkins_col.update_one(
+#         {"_id": ObjectId(checkin_id)},
+#         {"$set": {"status": "Approved"}}
+#     )
+
+#     return jsonify({"msg": "Check-in approved successfully."}), 200
+
 @admin_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
 @jwt_required()
 def approve_checkin(checkin_id):
@@ -198,7 +240,6 @@ def approve_checkin(checkin_id):
         return jsonify({"msg": "Invalid check-in time"}), 400
 
     date_str = checkin["date"]
-    time_str = checkin_dt.strftime("%H:%M")  # Save time in 24-hour format
 
     existing = logs_col.find_one({"email": checkin["email"], "date": date_str})
     if existing:
@@ -207,7 +248,7 @@ def approve_checkin(checkin_id):
     logs_col.insert_one({
         "email": checkin["email"],
         "date": date_str,
-        "checkin": time_str,
+        "checkin": checkin_dt,  # ✅ Store full UTC datetime
         "checkout": None,
         "approved": True
     })
@@ -218,8 +259,6 @@ def approve_checkin(checkin_id):
     )
 
     return jsonify({"msg": "Check-in approved successfully."}), 200
-
-
 
 
 @admin_bp.route("/records", methods=["GET"])
