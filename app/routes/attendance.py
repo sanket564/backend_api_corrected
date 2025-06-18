@@ -205,6 +205,63 @@ def checkin():
 
 #     return jsonify({"msg": "Checked out successfully"}), 200
 
+# @attendance_bp.route("/checkout", methods=["POST"])
+# @jwt_required()
+# def checkout():
+#     email = get_jwt_identity()
+#     data = request.json or {}
+#     print("📥 Checkout data received:", data)
+
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.logs
+#     india = timezone("Asia/Kolkata")
+
+#     if "datetime" not in data:
+#         return jsonify({"msg": "Missing datetime"}), 400
+
+#     try:
+#         checkout_ist = india.localize(datetime.strptime(data["datetime"], "%Y-%m-%dT%H:%M"))
+#         checkout_utc = checkout_ist.astimezone(utc)
+#         print("🧪 Parsed checkout datetime (IST):", checkout_ist)
+#     except ValueError:
+#         return jsonify({"msg": "Invalid datetime format"}), 400
+
+#     user = users_col.find_one({"email": email})
+#     if not user:
+#         return jsonify({"msg": "User not found"}), 404
+
+#     join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
+
+#     if checkout_ist.date() < join_date.date():
+#         return jsonify({"msg": "Check-out cannot be before date of joining"}), 400
+
+#     log = logs_col.find_one(
+#         {"email": email, "checkin": {"$exists": True}, "checkout": None},
+#         sort=[("date", -1)]
+#     )
+
+#     if not log:
+#         return jsonify({"msg": "Please check-in first"}), 400
+
+#     # Convert check-in to datetime if needed
+#     if isinstance(log["checkin"], str):
+#         try:
+#             checkin_ist = india.localize(datetime.strptime(f"{log['date']} {log['checkin']}", "%Y-%m-%d %H:%M"))
+#             checkin_utc = checkin_ist.astimezone(utc)
+#         except Exception:
+#             return jsonify({"msg": "Invalid check-in format"}), 400
+#     else:
+#         checkin_utc = log["checkin"]
+
+#     if checkout_utc <= checkin_utc:
+#         return jsonify({"msg": "Check-out must be after check-in"}), 400
+
+#     logs_col.update_one(
+#         {"_id": log["_id"]},
+#         {"$set": {"checkout": checkout_utc}}
+#     )
+
+#     return jsonify({"msg": "Checked out successfully"}), 200
 @attendance_bp.route("/checkout", methods=["POST"])
 @jwt_required()
 def checkout():
@@ -231,7 +288,6 @@ def checkout():
         return jsonify({"msg": "User not found"}), 404
 
     join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
-
     if checkout_ist.date() < join_date.date():
         return jsonify({"msg": "Check-out cannot be before date of joining"}), 400
 
@@ -243,7 +299,7 @@ def checkout():
     if not log:
         return jsonify({"msg": "Please check-in first"}), 400
 
-    # Convert check-in to datetime if needed
+    # Handle check-in comparison safely
     if isinstance(log["checkin"], str):
         try:
             checkin_ist = india.localize(datetime.strptime(f"{log['date']} {log['checkin']}", "%Y-%m-%d %H:%M"))
@@ -252,6 +308,8 @@ def checkout():
             return jsonify({"msg": "Invalid check-in format"}), 400
     else:
         checkin_utc = log["checkin"]
+        if checkin_utc.tzinfo is None:
+            checkin_utc = utc.localize(checkin_utc)
 
     if checkout_utc <= checkin_utc:
         return jsonify({"msg": "Check-out must be after check-in"}), 400
@@ -262,6 +320,7 @@ def checkout():
     )
 
     return jsonify({"msg": "Checked out successfully"}), 200
+
 
 
 
