@@ -341,6 +341,30 @@ def checkout():
 
 
 
+# @attendance_bp.route("/history", methods=["GET"])
+# @jwt_required()
+# def attendance_history():
+#     logs_col = mongo.db.logs
+#     email = get_jwt_identity()
+#     india = timezone("Asia/Kolkata")
+
+#     logs = list(logs_col.find({"email": email}).sort("date", -1))
+
+#     for log in logs:
+#         log["_id"] = str(log["_id"])
+
+#         for k in ("checkin", "checkout"):
+#             val = log.get(k)
+#             if isinstance(val, datetime):
+#                 # Convert from UTC to IST
+#                 ist_time = val.astimezone(india)
+#                 log[k] = ist_time.strftime("%Y-%m-%dT%H:%M:%S")
+#             elif isinstance(val, str):
+#                 # Leave string values as-is (legacy fallback)
+#                 log[k] = val
+
+#     return jsonify(logs), 200
+
 @attendance_bp.route("/history", methods=["GET"])
 @jwt_required()
 def attendance_history():
@@ -356,12 +380,14 @@ def attendance_history():
         for k in ("checkin", "checkout"):
             val = log.get(k)
             if isinstance(val, datetime):
-                # Convert from UTC to IST
+                # ✅ Ensure datetime is timezone-aware
+                if val.tzinfo is None:
+                    val = utc.localize(val)  # assume stored as UTC
                 ist_time = val.astimezone(india)
-                log[k] = ist_time.strftime("%Y-%m-%dT%H:%M:%S")
+                log[k] = ist_time.strftime("%Y-%m-%d %I:%M %p")  # optional: show AM/PM format
             elif isinstance(val, str):
-                # Leave string values as-is (legacy fallback)
-                log[k] = val
+                log[k] = val  # legacy fallback
 
     return jsonify(logs), 200
+
 
