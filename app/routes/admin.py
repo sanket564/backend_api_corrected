@@ -36,23 +36,45 @@ def check_admin_exists():
 #             p["checkin_time"] = p["requested_at"].strftime("%I:%M %p")
 #     return jsonify(pending), 200
 
+# @admin_bp.route("/checkins/pending", methods=["GET"])
+# @jwt_required()
+# def get_pending_checkins():
+#     users_col = mongo.db.users
+#     pending_checkins_col = mongo.db.pending_checkins
+#     india = timezone("Asia/Kolkata")
+
+#     email = get_jwt_identity()
+#     if not users_col.find_one({"email": email, "role": "admin"}):
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     pending = list(pending_checkins_col.find({"status": "Pending"}))
+#     for p in pending:
+#         p["_id"] = str(p["_id"])
+#         if p.get("requested_at"):
+#             ist_time = p["requested_at"].astimezone(india)
+#             p["checkin_time"] = ist_time.strftime("%I:%M %p")
+#     return jsonify(pending), 200
+
 @admin_bp.route("/checkins/pending", methods=["GET"])
 @jwt_required()
 def get_pending_checkins():
     users_col = mongo.db.users
     pending_checkins_col = mongo.db.pending_checkins
-    india = timezone("Asia/Kolkata")
 
     email = get_jwt_identity()
-    if not users_col.find_one({"email": email, "role": "admin"}):
+    admin = users_col.find_one({"email": email})
+    if not admin or admin["role"] != "admin":
         return jsonify({"msg": "Unauthorized"}), 403
 
     pending = list(pending_checkins_col.find({"status": "Pending"}))
     for p in pending:
         p["_id"] = str(p["_id"])
-        if p.get("requested_at"):
-            ist_time = p["requested_at"].astimezone(india)
-            p["checkin_time"] = ist_time.strftime("%I:%M %p")
+        p["checkin_time"] = p["requested_at"].strftime("%I:%M %p") if p.get("requested_at") else "—"
+
+    print("✅ Sent to frontend:")
+    from pprint import pprint
+    pprint(pending)
+
     return jsonify(pending), 200
 
 
@@ -122,35 +144,78 @@ def get_pending_checkins():
 
 #     return jsonify({"msg": "Check-in approved"}), 200
 
+# @admin_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
+# @jwt_required()
+# def approve_checkin(checkin_id):
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.logs
+#     pending_checkins_col = mongo.db.pending_checkins
+
+#     email = get_jwt_identity()
+#     if not users_col.find_one({"email": email, "role": "admin"}):
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     checkin = pending_checkins_col.find_one({"_id": ObjectId(checkin_id)})
+#     if not checkin:
+#         return jsonify({"msg": "Check-in request not found"}), 404
+
+#     if logs_col.find_one({"email": checkin["email"], "date": checkin["date"]}):
+#         return jsonify({"msg": "Check-in already exists"}), 400
+
+#     # ✅ Save checkin as UTC datetime instead of string
+#     logs_col.insert_one({
+#         "email": checkin["email"],
+#         "date": checkin["date"],
+#         "checkin": checkin["requested_at"],  # already UTC datetime
+#         "checkout": None,
+#         "approved": True
+#     })
+
+#     pending_checkins_col.update_one({"_id": checkin["_id"]}, {"$set": {"status": "Approved"}})
+#     return jsonify({"msg": "Check-in approved"}), 200
+
 @admin_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
 @jwt_required()
 def approve_checkin(checkin_id):
     users_col = mongo.db.users
-    logs_col = mongo.db.logs
     pending_checkins_col = mongo.db.pending_checkins
+    logs_col = mongo.db.logs
 
     email = get_jwt_identity()
-    if not users_col.find_one({"email": email, "role": "admin"}):
+    admin = users_col.find_one({"email": email})
+    if not admin or admin["role"] != "admin":
         return jsonify({"msg": "Unauthorized"}), 403
 
     checkin = pending_checkins_col.find_one({"_id": ObjectId(checkin_id)})
     if not checkin:
         return jsonify({"msg": "Check-in request not found"}), 404
 
-    if logs_col.find_one({"email": checkin["email"], "date": checkin["date"]}):
-        return jsonify({"msg": "Check-in already exists"}), 400
+    checkin_dt = checkin.get("requested_at")
+    if not checkin_dt:
+        return jsonify({"msg": "Invalid check-in time"}), 400
 
-    # ✅ Save checkin as UTC datetime instead of string
+    date_str = checkin["date"]
+    time_str = checkin_dt.strftime("%H:%M")  # Save time in 24-hour format
+
+    existing = logs_col.find_one({"email": checkin["email"], "date": date_str})
+    if existing:
+        return jsonify({"msg": "Employee already has a check-in for this date"}), 400
+
     logs_col.insert_one({
         "email": checkin["email"],
-        "date": checkin["date"],
-        "checkin": checkin["requested_at"],  # already UTC datetime
+        "date": date_str,
+        "checkin": time_str,
         "checkout": None,
         "approved": True
     })
 
-    pending_checkins_col.update_one({"_id": checkin["_id"]}, {"$set": {"status": "Approved"}})
-    return jsonify({"msg": "Check-in approved"}), 200
+    pending_checkins_col.update_one(
+        {"_id": ObjectId(checkin_id)},
+        {"$set": {"status": "Approved"}}
+    )
+
+    return jsonify({"msg": "Check-in approved successfully."}), 200
+
 
 
 
