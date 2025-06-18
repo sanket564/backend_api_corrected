@@ -492,7 +492,7 @@ def checkout():
 
 #     return jsonify(logs), 200
 
-@attendance_bp.route('/attendance/history', methods=['GET'])
+@attendance_bp.route('/history', methods=['GET'])
 @jwt_required()
 def attendance_history():
     email = get_jwt_identity()
