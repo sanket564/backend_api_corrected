@@ -69,7 +69,10 @@ def get_pending_checkins():
     pending = list(pending_checkins_col.find({"status": "Pending"}))
     for p in pending:
         p["_id"] = str(p["_id"])
-        p["checkin_time"] = p["requested_at"].strftime("%I:%M %p") if p.get("requested_at") else "—"
+        # p["checkin_time"] = p["requested_at"].strftime("%I:%M %p") if p.get("requested_at") else "—"
+        india = timezone("Asia/Kolkata")
+        ist_time = p["requested_at"].astimezone(india)
+        p["checkin_time"] = ist_time.strftime("%I:%M %p")
 
     print("✅ Sent to frontend:")
     from pprint import pprint
@@ -234,9 +237,13 @@ def all_attendance():
     records = list(logs_col.find(query))
     for r in records:
         r["_id"] = str(r["_id"])
+        india = timezone("Asia/Kolkata")
         for k in ("checkin", "checkout"):
             if isinstance(r.get(k), datetime):
-                r[k] = r[k].strftime("%I:%M %p")
+                r[k] = r[k].astimezone(india).strftime("%I:%M %p")
+        # for k in ("checkin", "checkout"):
+        #     if isinstance(r.get(k), datetime):
+        #         r[k] = r[k].strftime("%I:%M %p")
     return jsonify(records), 200
 
 @admin_bp.route("/export", methods=["GET"])
