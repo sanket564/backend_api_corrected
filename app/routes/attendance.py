@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from dateutil import parser
+from pytz import timezone, utc
 
 from app.extensions import mongo
 
@@ -32,6 +33,49 @@ attendance_bp = Blueprint("attendance", __name__)
 
 #     return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
 
+# @attendance_bp.route("/checkin", methods=["POST"])
+# @jwt_required()
+# def checkin():
+#     email = get_jwt_identity()
+#     data = request.get_json()
+#     print("📥 Received data in checkin route:", data)
+
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.logs
+#     pending_checkins_col = mongo.db.pending_checkins
+
+#     if not data or 'datetime' not in data:
+#         return jsonify({"msg": "Missing datetime"}), 400
+
+#     requested_datetime = datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M")
+#     date_str = requested_datetime.strftime('%Y-%m-%d')
+
+#     user = users_col.find_one({"email": email})
+#     doj = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d")
+
+#     if requested_datetime < doj:
+#         return jsonify({"msg": "You cannot check in before your date of joining."}), 400
+
+#     # Prevent duplicate
+#     if logs_col.find_one({"email": email, "date": date_str}):
+#         return jsonify({"msg": "Already checked in on this day"}), 400
+
+#     if pending_checkins_col.find_one({"email": email, "date": date_str, "status": "Pending"}):
+#         return jsonify({"msg": "Check-in request already submitted and awaiting approval"}), 400
+
+#     # Insert as pending
+#     pending_checkins_col.insert_one({
+#         "email": email,
+#         "date": date_str,
+#         "requested_at": requested_datetime,
+#         "status": "Pending"
+#     })
+
+#     return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
+
+
+
+
 @attendance_bp.route("/checkin", methods=["POST"])
 @jwt_required()
 def checkin():
@@ -42,35 +86,36 @@ def checkin():
     users_col = mongo.db.users
     logs_col = mongo.db.logs
     pending_checkins_col = mongo.db.pending_checkins
+    india = timezone("Asia/Kolkata")
 
     if not data or 'datetime' not in data:
         return jsonify({"msg": "Missing datetime"}), 400
 
-    requested_datetime = datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M")
-    date_str = requested_datetime.strftime('%Y-%m-%d')
+    requested_datetime_ist = india.localize(datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M"))
+    requested_datetime_utc = requested_datetime_ist.astimezone(utc)
+    date_str = requested_datetime_ist.strftime('%Y-%m-%d')  # date is always in IST
 
     user = users_col.find_one({"email": email})
     doj = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d")
 
-    if requested_datetime < doj:
+    if requested_datetime_ist < doj:
         return jsonify({"msg": "You cannot check in before your date of joining."}), 400
 
-    # Prevent duplicate
     if logs_col.find_one({"email": email, "date": date_str}):
         return jsonify({"msg": "Already checked in on this day"}), 400
 
     if pending_checkins_col.find_one({"email": email, "date": date_str, "status": "Pending"}):
         return jsonify({"msg": "Check-in request already submitted and awaiting approval"}), 400
 
-    # Insert as pending
     pending_checkins_col.insert_one({
         "email": email,
-        "date": date_str,
-        "requested_at": requested_datetime,
+        "date": date_str,  # still IST date string
+        "requested_at": requested_datetime_utc,
         "status": "Pending"
     })
 
     return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
+
 
 
 # @attendance_bp.route("/checkout", methods=["POST"])
@@ -98,6 +143,67 @@ def checkin():
 #     logs_col.update_one({"_id": log["_id"]}, {"$set": {"checkout": checkout_dt}})
 #     return jsonify({"msg": "Checked out successfully"}), 200
 
+# @attendance_bp.route("/checkout", methods=["POST"])
+# @jwt_required()
+# def checkout():
+#     email = get_jwt_identity()
+#     data = request.json or {}
+#     print("📥 Checkout data received:", data)
+
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.logs
+
+#     if "datetime" not in data:
+#         return jsonify({"msg": "Missing datetime"}), 400
+
+#     try:
+#         checkout_datetime = datetime.strptime(data["datetime"], "%Y-%m-%dT%H:%M")
+#         print("🧪 Parsed checkout datetime:", checkout_datetime)
+#     except ValueError:
+#         return jsonify({"msg": "Invalid datetime format"}), 400
+
+#     # Get employee's join date
+#     user = users_col.find_one({"email": email})
+#     if not user:
+#         return jsonify({"msg": "User not found"}), 404
+
+#     join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
+#     print("🧪 User join date:", join_date)
+
+#     if checkout_datetime.date() < join_date.date():
+#         return jsonify({"msg": "Check-out cannot be before date of joining"}), 400
+
+#     # Find last log with check-in but no check-out
+#     log = logs_col.find_one(
+#         {"email": email, "checkin": {"$exists": True}, "checkout": None},
+#         sort=[("date", -1)]
+#     )
+#     print("🧪 Checking log:", log)
+#     print("🧪 Existing checkin:", log["checkin"] if log else "No log")
+
+#     if not log:
+#         return jsonify({"msg": "Please check-in first"}), 400
+
+#     # ✅ Convert check-in string to datetime if needed
+#     if isinstance(log["checkin"], str):
+#         try:
+#             checkin_datetime = parser.parse(f"{log['date']} {log['checkin']}")
+#         except Exception:
+#             return jsonify({"msg": "Invalid check-in format"}), 400
+#     else:
+#         checkin_datetime = log["checkin"]
+
+#     if checkout_datetime <= checkin_datetime:
+#         return jsonify({"msg": "Check-out must be after check-in"}), 400
+
+#     # Update
+#     logs_col.update_one(
+#         {"_id": log["_id"]},
+#         {"$set": {"checkout": checkout_datetime}}
+#     )
+
+#     return jsonify({"msg": "Checked out successfully"}), 200
+
 @attendance_bp.route("/checkout", methods=["POST"])
 @jwt_required()
 def checkout():
@@ -107,57 +213,71 @@ def checkout():
 
     users_col = mongo.db.users
     logs_col = mongo.db.logs
+    india = timezone("Asia/Kolkata")
 
     if "datetime" not in data:
         return jsonify({"msg": "Missing datetime"}), 400
 
     try:
-        checkout_datetime = datetime.strptime(data["datetime"], "%Y-%m-%dT%H:%M")
-        print("🧪 Parsed checkout datetime:", checkout_datetime)
+        checkout_ist = india.localize(datetime.strptime(data["datetime"], "%Y-%m-%dT%H:%M"))
+        checkout_utc = checkout_ist.astimezone(utc)
+        print("🧪 Parsed checkout datetime (IST):", checkout_ist)
     except ValueError:
         return jsonify({"msg": "Invalid datetime format"}), 400
 
-    # Get employee's join date
     user = users_col.find_one({"email": email})
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
     join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
-    print("🧪 User join date:", join_date)
 
-    if checkout_datetime.date() < join_date.date():
+    if checkout_ist.date() < join_date.date():
         return jsonify({"msg": "Check-out cannot be before date of joining"}), 400
 
-    # Find last log with check-in but no check-out
     log = logs_col.find_one(
         {"email": email, "checkin": {"$exists": True}, "checkout": None},
         sort=[("date", -1)]
     )
-    print("🧪 Checking log:", log)
-    print("🧪 Existing checkin:", log["checkin"] if log else "No log")
 
     if not log:
         return jsonify({"msg": "Please check-in first"}), 400
 
-    # ✅ Convert check-in string to datetime if needed
+    # Convert check-in to datetime if needed
     if isinstance(log["checkin"], str):
         try:
-            checkin_datetime = parser.parse(f"{log['date']} {log['checkin']}")
+            checkin_ist = india.localize(datetime.strptime(f"{log['date']} {log['checkin']}", "%Y-%m-%d %H:%M"))
+            checkin_utc = checkin_ist.astimezone(utc)
         except Exception:
             return jsonify({"msg": "Invalid check-in format"}), 400
     else:
-        checkin_datetime = log["checkin"]
+        checkin_utc = log["checkin"]
 
-    if checkout_datetime <= checkin_datetime:
+    if checkout_utc <= checkin_utc:
         return jsonify({"msg": "Check-out must be after check-in"}), 400
 
-    # Update
     logs_col.update_one(
         {"_id": log["_id"]},
-        {"$set": {"checkout": checkout_datetime}}
+        {"$set": {"checkout": checkout_utc}}
     )
 
     return jsonify({"msg": "Checked out successfully"}), 200
+
+
+
+
+# @attendance_bp.route("/history", methods=["GET"])
+# @jwt_required()
+# def attendance_history():
+#     logs_col = mongo.db.logs
+
+#     email = get_jwt_identity()
+#     logs = list(logs_col.find({"email": email}).sort("date", -1))
+#     for log in logs:
+#         log["_id"] = str(log["_id"])
+#         for k in ("checkin", "checkout"):
+#             if isinstance(log.get(k), datetime):
+#                 log[k] = log[k].strftime("%Y-%m-%dT%H:%M:%S")
+#     return jsonify(logs), 200
 
 
 
@@ -165,12 +285,23 @@ def checkout():
 @jwt_required()
 def attendance_history():
     logs_col = mongo.db.logs
-
     email = get_jwt_identity()
+    india = timezone("Asia/Kolkata")
+
     logs = list(logs_col.find({"email": email}).sort("date", -1))
+
     for log in logs:
         log["_id"] = str(log["_id"])
+
         for k in ("checkin", "checkout"):
-            if isinstance(log.get(k), datetime):
-                log[k] = log[k].strftime("%Y-%m-%dT%H:%M:%S")
+            val = log.get(k)
+            if isinstance(val, datetime):
+                # Convert from UTC to IST
+                ist_time = val.astimezone(india)
+                log[k] = ist_time.strftime("%Y-%m-%dT%H:%M:%S")
+            elif isinstance(val, str):
+                # Leave string values as-is (legacy fallback)
+                log[k] = val
+
     return jsonify(logs), 200
+
