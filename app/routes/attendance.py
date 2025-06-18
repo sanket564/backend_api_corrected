@@ -139,7 +139,9 @@ def checkin():
     date_str = requested_datetime_ist.strftime('%Y-%m-%d')
 
     user = users_col.find_one({"email": email})
-    doj = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d")
+    # doj = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d")
+    doj = india.localize(datetime.strptime(user.get("join_date", ""), "%Y-%m-%d"))
+
 
     if  requested_datetime_ist < doj:
         return jsonify({"msg": "You cannot check in before your date of joining."}), 400
