@@ -124,6 +124,11 @@ def checkin():
     data = request.get_json()
     print("📥 Received data in checkin route:", data)
 
+    users_col = mongo.db.users
+    logs_col = mongo.db.logs
+    pending_checkins_col = mongo.db.pending_checkins
+
+
     if not data or 'datetime' not in data:
         return jsonify({"msg": "Missing datetime"}), 400
 
@@ -364,6 +369,9 @@ def checkout():
     email = get_jwt_identity()
     data = request.json or {}
     print("📥 Checkout data received:", data)
+
+    users_col = mongo.db.users
+    logs_col = mongo.db.logs
 
     if "datetime" not in data:
         return jsonify({"msg": "Missing datetime"}), 400
