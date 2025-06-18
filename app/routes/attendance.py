@@ -368,6 +368,74 @@ def checkin():
 
 #     return jsonify({"msg": "Checked out successfully"}), 200
 
+# @attendance_bp.route("/checkout", methods=["POST"])
+# @jwt_required()
+# def checkout():
+#     email = get_jwt_identity()
+#     data = request.json or {}
+#     print("📥 Checkout data received:", data)
+
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.logs
+
+#     if "datetime" not in data:
+#         return jsonify({"msg": "Missing datetime"}), 400
+
+#     try:
+#         checkout_datetime = datetime.strptime(data["datetime"], "%Y-%m-%dT%H:%M")
+#         print("🧪 Parsed checkout datetime:", checkout_datetime)
+#     except ValueError:
+#         return jsonify({"msg": "Invalid datetime format"}), 400
+
+#     # Get employee's join date
+#     user = users_col.find_one({"email": email})
+#     if not user:
+#         return jsonify({"msg": "User not found"}), 404
+
+#     join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
+#     print("🧪 User join date:", join_date)
+
+#     if checkout_datetime.date() < join_date.date():
+#         return jsonify({"msg": "Check-out cannot be before date of joining"}), 400
+
+#     # Find last log with check-in but no check-out
+#     log = logs_col.find_one(
+#         {"email": email, "checkin": {"$exists": True}, "checkout": None},
+#         sort=[("date", -1)]
+#     )
+#     print("🧪 Checking log:", log)
+#     print("🧪 Existing checkin:", log["checkin"] if log else "No log")
+
+#     if not log:
+#         return jsonify({"msg": "Please check-in first"}), 400
+
+#     # ✅ Convert check-in string to datetime if needed
+#     if isinstance(log["checkin"], str):
+#         try:
+#             checkin_datetime = parser.parse(f"{log['date']} {log['checkin']}")
+#         except Exception:
+#             return jsonify({"msg": "Invalid check-in format"}), 400
+#     else:
+#         checkin_datetime = log["checkin"]
+
+   
+#     if checkin_datetime.tzinfo is None:
+#         checkin_datetime = utc.localize(checkin_datetime)
+#     if checkout_datetime.tzinfo is None:
+#         checkout_datetime = utc.localize(checkout_datetime)
+
+
+#     if checkout_datetime <= checkin_datetime:
+#         return jsonify({"msg": "Check-out must be after check-in"}), 400
+
+#     # Update
+#     logs_col.update_one(
+#         {"_id": log["_id"]},
+#         {"$set": {"checkout": checkout_datetime}}
+#     )
+
+#     return jsonify({"msg": "Checked out successfully"}), 200
+
 @attendance_bp.route("/checkout", methods=["POST"])
 @jwt_required()
 def checkout():
@@ -382,34 +450,30 @@ def checkout():
         return jsonify({"msg": "Missing datetime"}), 400
 
     try:
-        checkout_datetime = datetime.strptime(data["datetime"], "%Y-%m-%dT%H:%M")
-        print("🧪 Parsed checkout datetime:", checkout_datetime)
+        india = timezone("Asia/Kolkata")
+        checkout_datetime_ist = india.localize(datetime.strptime(data["datetime"], "%Y-%m-%dT%H:%M"))
+        checkout_datetime = checkout_datetime_ist.astimezone(utc)
+        print("🕐 Converted checkout to UTC:", checkout_datetime)
     except ValueError:
         return jsonify({"msg": "Invalid datetime format"}), 400
 
-    # Get employee's join date
     user = users_col.find_one({"email": email})
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
     join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
-    print("🧪 User join date:", join_date)
-
-    if checkout_datetime.date() < join_date.date():
+    if checkout_datetime_ist.date() < join_date.date():
         return jsonify({"msg": "Check-out cannot be before date of joining"}), 400
 
-    # Find last log with check-in but no check-out
     log = logs_col.find_one(
         {"email": email, "checkin": {"$exists": True}, "checkout": None},
         sort=[("date", -1)]
     )
-    print("🧪 Checking log:", log)
-    print("🧪 Existing checkin:", log["checkin"] if log else "No log")
 
     if not log:
         return jsonify({"msg": "Please check-in first"}), 400
 
-    # ✅ Convert check-in string to datetime if needed
+    # ✅ Normalize check-in time to UTC if needed
     if isinstance(log["checkin"], str):
         try:
             checkin_datetime = parser.parse(f"{log['date']} {log['checkin']}")
@@ -418,17 +482,12 @@ def checkout():
     else:
         checkin_datetime = log["checkin"]
 
-   
     if checkin_datetime.tzinfo is None:
         checkin_datetime = utc.localize(checkin_datetime)
-    if checkout_datetime.tzinfo is None:
-        checkout_datetime = utc.localize(checkout_datetime)
-
 
     if checkout_datetime <= checkin_datetime:
         return jsonify({"msg": "Check-out must be after check-in"}), 400
 
-    # Update
     logs_col.update_one(
         {"_id": log["_id"]},
         {"$set": {"checkout": checkout_datetime}}
