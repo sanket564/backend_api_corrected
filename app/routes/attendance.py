@@ -492,25 +492,47 @@ def checkout():
 
 #     return jsonify(logs), 200
 
+# @attendance_bp.route('/history', methods=['GET'])
+# @jwt_required()
+# def attendance_history():
+#     email = get_jwt_identity()
+    
+#     # ✅ Fix: define the collection
+#     logs_col = mongo.db.logs
+
+#     logs = list(logs_col.find({"email": email}).sort("date", -1))
+    
+#     for log in logs:
+#         log["_id"] = str(log["_id"])  # Convert ObjectId to string
+        
+#         # Convert datetime to string
+#         if isinstance(log.get("checkin"), datetime):
+#             log["checkin"] = log["checkin"].strftime("%Y-%m-%dT%H:%M:%S")
+#         if isinstance(log.get("checkout"), datetime):
+#             log["checkout"] = log["checkout"].strftime("%Y-%m-%dT%H:%M:%S")
+    
+#     return jsonify(logs), 200
+
+
 @attendance_bp.route('/history', methods=['GET'])
 @jwt_required()
 def attendance_history():
-    email = get_jwt_identity()
-    
-    # ✅ Fix: define the collection
     logs_col = mongo.db.logs
+    email = get_jwt_identity()
+    india = timezone("Asia/Kolkata")
 
     logs = list(logs_col.find({"email": email}).sort("date", -1))
-    
+
     for log in logs:
-        log["_id"] = str(log["_id"])  # Convert ObjectId to string
-        
-        # Convert datetime to string
-        if isinstance(log.get("checkin"), datetime):
-            log["checkin"] = log["checkin"].strftime("%Y-%m-%dT%H:%M:%S")
-        if isinstance(log.get("checkout"), datetime):
-            log["checkout"] = log["checkout"].strftime("%Y-%m-%dT%H:%M:%S")
-    
+        log["_id"] = str(log["_id"])
+
+        for k in ("checkin", "checkout"):
+            val = log.get(k)
+            if isinstance(val, datetime):
+                # ✅ Assume datetime is in UTC and convert to IST
+                val = val.replace(tzinfo=timezone("UTC")).astimezone(india)
+                log[k] = val.strftime("%d-%m-%Y %I:%M %p")  # e.g., "18-06-2025 07:35 PM"
+
     return jsonify(logs), 200
 
 
