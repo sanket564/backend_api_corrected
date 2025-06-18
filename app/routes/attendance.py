@@ -136,7 +136,7 @@ def checkin():
     india = timezone("Asia/Kolkata")
     requested_datetime_ist = india.localize(datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M"))
     requested_datetime_utc = requested_datetime_ist.astimezone(utc)
-    date_str = requested_datetime.strftime('%Y-%m-%d')
+    date_str = requested_datetime_ist.strftime('%Y-%m-%d')
 
     user = users_col.find_one({"email": email})
     doj = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d")
