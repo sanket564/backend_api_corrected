@@ -416,6 +416,13 @@ def checkout():
     else:
         checkin_datetime = log["checkin"]
 
+   
+    if checkin_datetime.tzinfo is None:
+        checkin_datetime = utc.localize(checkin_datetime)
+    if checkout_datetime.tzinfo is None:
+        checkout_datetime = utc.localize(checkout_datetime)
+
+
     if checkout_datetime <= checkin_datetime:
         return jsonify({"msg": "Check-out must be after check-in"}), 400
 
