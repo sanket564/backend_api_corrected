@@ -132,7 +132,10 @@ def checkin():
     if not data or 'datetime' not in data:
         return jsonify({"msg": "Missing datetime"}), 400
 
-    requested_datetime = datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M")
+    # requested_datetime = datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M")
+    india = timezone("Asia/Kolkata")
+    requested_datetime_ist = india.localize(datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M"))
+    requested_datetime_utc = requested_datetime_ist.astimezone(utc)
     date_str = requested_datetime.strftime('%Y-%m-%d')
 
     user = users_col.find_one({"email": email})
@@ -152,7 +155,7 @@ def checkin():
     pending_checkins_col.insert_one({
         "email": email,
         "date": date_str,
-        "requested_at": requested_datetime,
+        "requested_at": requested_datetime_utc,
         "status": "Pending"
     })
 
