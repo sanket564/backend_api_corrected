@@ -467,29 +467,52 @@ def checkout():
 
 #     return jsonify(logs), 200
 
-@attendance_bp.route("/history", methods=["GET"])
+# @attendance_bp.route("/history", methods=["GET"])
+# @jwt_required()
+# def attendance_history():
+#     logs_col = mongo.db.logs
+#     email = get_jwt_identity()
+#     india = timezone("Asia/Kolkata")
+
+#     logs = list(logs_col.find({"email": email}).sort("date", -1))
+
+#     for log in logs:
+#         log["_id"] = str(log["_id"])
+
+#         for k in ("checkin", "checkout"):
+#             val = log.get(k)
+#             if isinstance(val, datetime):
+#                 # ✅ Ensure datetime is timezone-aware
+#                 if val.tzinfo is None:
+#                     val = utc.localize(val)  # assume stored as UTC
+#                 ist_time = val.astimezone(india)
+#                 log[k] = ist_time.strftime("%Y-%m-%d %I:%M %p")  # optional: show AM/PM format
+#             elif isinstance(val, str):
+#                 log[k] = val  # legacy fallback
+
+#     return jsonify(logs), 200
+
+@attendance_bp.route('/attendance/history', methods=['GET'])
 @jwt_required()
 def attendance_history():
-    logs_col = mongo.db.logs
     email = get_jwt_identity()
-    india = timezone("Asia/Kolkata")
+    
+    # ✅ Fix: define the collection
+    logs_col = mongo.db.logs
 
     logs = list(logs_col.find({"email": email}).sort("date", -1))
-
+    
     for log in logs:
-        log["_id"] = str(log["_id"])
-
-        for k in ("checkin", "checkout"):
-            val = log.get(k)
-            if isinstance(val, datetime):
-                # ✅ Ensure datetime is timezone-aware
-                if val.tzinfo is None:
-                    val = utc.localize(val)  # assume stored as UTC
-                ist_time = val.astimezone(india)
-                log[k] = ist_time.strftime("%Y-%m-%d %I:%M %p")  # optional: show AM/PM format
-            elif isinstance(val, str):
-                log[k] = val  # legacy fallback
-
+        log["_id"] = str(log["_id"])  # Convert ObjectId to string
+        
+        # Convert datetime to string
+        if isinstance(log.get("checkin"), datetime):
+            log["checkin"] = log["checkin"].strftime("%Y-%m-%dT%H:%M:%S")
+        if isinstance(log.get("checkout"), datetime):
+            log["checkout"] = log["checkout"].strftime("%Y-%m-%dT%H:%M:%S")
+    
     return jsonify(logs), 200
+
+
 
 
