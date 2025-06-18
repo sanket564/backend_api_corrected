@@ -117,7 +117,7 @@ attendance_bp = Blueprint("attendance", __name__)
 
 #     return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
 
-@app.route("/attendance/checkin", methods=["POST"])
+@attendance_bp.route("/checkin", methods=["POST"])
 @jwt_required()
 def checkin():
     email = get_jwt_identity()
@@ -358,7 +358,7 @@ def checkin():
 
 #     return jsonify({"msg": "Checked out successfully"}), 200
 
-@app.route("/attendance/checkout", methods=["POST"])
+@attendance_bp.route("/checkout", methods=["POST"])
 @jwt_required()
 def checkout():
     email = get_jwt_identity()
