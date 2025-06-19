@@ -260,6 +260,32 @@ def approve_checkin(checkin_id):
 
     return jsonify({"msg": "Check-in approved successfully."}), 200
 
+@admin_bp.route("/checkins/reject/<checkin_id>", methods=["POST"])
+@jwt_required()
+def reject_checkin(checkin_id):
+    users_col = mongo.db.users
+    pending_checkins_col = mongo.db.pending_checkins
+
+    email = get_jwt_identity()
+    admin = users_col.find_one({"email": email})
+    if not admin or admin["role"] != "admin":
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    checkin = pending_checkins_col.find_one({"_id": ObjectId(checkin_id)})
+    if not checkin:
+        return jsonify({"msg": "Check-in request not found"}), 404
+
+    if checkin.get("status") == "Rejected":
+        return jsonify({"msg": "Check-in request is already rejected"}), 400
+
+    pending_checkins_col.update_one(
+        {"_id": ObjectId(checkin_id)},
+        {"$set": {"status": "Rejected"}}
+    )
+
+    return jsonify({"msg": "Check-in rejected successfully."}), 200
+
+
 
 @admin_bp.route("/records", methods=["GET"])
 @jwt_required()
