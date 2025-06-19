@@ -407,50 +407,19 @@ def total_employees():
 #     })
 #     return jsonify({"msg": "Employee added successfully"}), 201
 
-# @admin_bp.route("/add-employee", methods=["POST"])
-# @jwt_required()
-# def add_employee():
-#     users_col = mongo.db.users
-#     data = request.get_json()
-#     required = ("name", "email", "password", "join_date")
-    
-#     if not all(k in data for k in required):
-#         return jsonify({"msg": "Missing required fields"}), 400
-
-#     if users_col.find_one({"email": data["email"]}):
-#         return jsonify({"msg": "Employee already exists"}), 409
-    
-#     hashed_password = generate_password_hash(data["password"])
-
-#     users_col.insert_one({
-#         "name": data["name"],
-#         "email": data["email"],
-#         "password": hashed_password,
-#         "role": "employee",
-#         "join_date": data["join_date"],
-#         "department": data.get("department", "Not Assigned"),
-#         "position": data.get("position", "Not Assigned"),
-#         "bloodGroup": data.get("bloodGroup", "Not Provided")  # Added field
-#     })
-    
-#     return jsonify({"msg": "Employee added successfully"}), 201
-
 @admin_bp.route("/add-employee", methods=["POST"])
 @jwt_required()
 def add_employee():
     users_col = mongo.db.users
     data = request.get_json()
-    required = ("name", "email", "password", "confirm_password", "join_date")
+    required = ("name", "email", "password", "join_date")
     
     if not all(k in data for k in required):
         return jsonify({"msg": "Missing required fields"}), 400
 
-    if data["password"] != data["confirm_password"]:
-        return jsonify({"msg": "Passwords do not match"}), 400
-
     if users_col.find_one({"email": data["email"]}):
         return jsonify({"msg": "Employee already exists"}), 409
-
+    
     hashed_password = generate_password_hash(data["password"])
 
     users_col.insert_one({
@@ -461,11 +430,10 @@ def add_employee():
         "join_date": data["join_date"],
         "department": data.get("department", "Not Assigned"),
         "position": data.get("position", "Not Assigned"),
-        "bloodGroup": data.get("bloodGroup", "Not Provided")
+        "bloodGroup": data.get("bloodGroup", "Not Provided")  # Added field
     })
-
+    
     return jsonify({"msg": "Employee added successfully"}), 201
-
 
 
 
