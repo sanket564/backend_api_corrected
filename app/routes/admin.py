@@ -302,29 +302,75 @@ def reject_checkin(checkin_id):
 
 
 
+# @admin_bp.route("/records", methods=["GET"])
+# @jwt_required()
+# def all_attendance():
+#     logs_col = mongo.db.logs
+#     query = {}
+#     email = request.args.get('email')
+#     date = request.args.get('date')
+#     if email:
+#         query['email'] = email
+#     if date:
+#         query['date'] = date
+
+#     records = list(logs_col.find(query))
+#     for r in records:
+#         r["_id"] = str(r["_id"])
+#         india = timezone("Asia/Kolkata")
+#         for k in ("checkin", "checkout"):
+#             if isinstance(r.get(k), datetime):
+#                 r[k] = r[k].astimezone(india).strftime("%I:%M %p")
+#         # for k in ("checkin", "checkout"):
+#         #     if isinstance(r.get(k), datetime):
+#         #         r[k] = r[k].strftime("%I:%M %p")
+#     return jsonify(records), 200
+
 @admin_bp.route("/records", methods=["GET"])
 @jwt_required()
 def all_attendance():
     logs_col = mongo.db.logs
     query = {}
+
     email = request.args.get('email')
     date = request.args.get('date')
+
     if email:
         query['email'] = email
     if date:
         query['date'] = date
 
     records = list(logs_col.find(query))
+    india = timezone("Asia/Kolkata")
+
     for r in records:
         r["_id"] = str(r["_id"])
-        india = timezone("Asia/Kolkata")
-        for k in ("checkin", "checkout"):
-            if isinstance(r.get(k), datetime):
-                r[k] = r[k].astimezone(india).strftime("%I:%M %p")
-        # for k in ("checkin", "checkout"):
-        #     if isinstance(r.get(k), datetime):
-        #         r[k] = r[k].strftime("%I:%M %p")
+        checkin = r.get("checkin")
+        checkout = r.get("checkout")
+
+        # Convert and format checkin/checkout
+        if isinstance(checkin, datetime):
+            checkin_local = checkin.astimezone(india)
+            r["checkin"] = checkin_local.strftime("%I:%M %p")
+        else:
+            checkin_local = None
+
+        if isinstance(checkout, datetime):
+            checkout_local = checkout.astimezone(india)
+            r["checkout"] = checkout_local.strftime("%I:%M %p")
+        else:
+            checkout_local = None
+
+        # Calculate hours worked
+        if checkin_local and checkout_local:
+            delta = checkout_local - checkin_local
+            total_hours = round(delta.total_seconds() / 3600, 2)  # e.g., 8.75
+            r["hours_worked"] = total_hours
+        else:
+            r["hours_worked"] = None
+
     return jsonify(records), 200
+
 
 @admin_bp.route("/export", methods=["GET"])
 @jwt_required()
