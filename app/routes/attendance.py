@@ -726,6 +726,28 @@ def checkout():
 #                 log[k] = val.strftime("%d-%m-%Y %I:%M %p")  # e.g., "18-06-2025 07:35 PM"
 
 #     return jsonify(logs), 200
+# @attendance_bp.route('/history', methods=['GET'])
+# @jwt_required()
+# def attendance_history():
+#     logs_col = mongo.db.logs
+#     email = get_jwt_identity()
+#     india = timezone("Asia/Kolkata")
+
+#     logs = list(logs_col.find({"email": email}).sort("date", -1))
+
+#     for log in logs:
+#         log["_id"] = str(log["_id"])
+
+#         for k in ("checkin", "checkout"):
+#             val = log.get(k)
+#             if isinstance(val, datetime):
+#                 # ✅ Safely handle both naive and aware datetimes
+#                 if val.tzinfo is None:
+#                     val = utc.localize(val)  # treat as UTC
+#                 val_ist = val.astimezone(india)
+#                 log[k] = val_ist.strftime("%d-%m-%Y %I:%M %p")
+
+#     return jsonify(logs), 200
 @attendance_bp.route('/history', methods=['GET'])
 @jwt_required()
 def attendance_history():
@@ -737,17 +759,34 @@ def attendance_history():
 
     for log in logs:
         log["_id"] = str(log["_id"])
+        checkin_time = log.get("checkin")
+        checkout_time = log.get("checkout")
+
+        checkin_ist = checkout_ist = None
 
         for k in ("checkin", "checkout"):
             val = log.get(k)
             if isinstance(val, datetime):
-                # ✅ Safely handle both naive and aware datetimes
                 if val.tzinfo is None:
-                    val = utc.localize(val)  # treat as UTC
+                    val = utc.localize(val)
                 val_ist = val.astimezone(india)
                 log[k] = val_ist.strftime("%d-%m-%Y %I:%M %p")
 
+                if k == "checkin":
+                    checkin_ist = val_ist
+                elif k == "checkout":
+                    checkout_ist = val_ist
+
+        # Calculate hours worked if both checkin and checkout exist
+        if checkin_ist and checkout_ist:
+            duration = checkout_ist - checkin_ist
+            hours_worked = round(duration.total_seconds() / 3600, 2)
+            log["hours_worked"] = hours_worked
+        else:
+            log["hours_worked"] = None
+
     return jsonify(logs), 200
+
 
 
 
