@@ -80,6 +80,14 @@ def get_pending_checkins():
 
     return jsonify(pending), 200
 
+@admin_bp.route("/upload-biometric-logs", methods=["POST"])
+@jwt_required()
+def upload_biometric_logs():
+    logs = request.get_json()
+    # Insert logs to MongoDB
+    return jsonify({"msg": f"{len(logs)} logs uploaded"}), 200
+
+
 
 # @admin_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
 # @jwt_required()
