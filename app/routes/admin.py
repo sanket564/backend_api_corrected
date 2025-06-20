@@ -26,17 +26,21 @@ def get_all_employees():
 
     admin_email = get_jwt_identity()
     admin = users_col.find_one({"email": admin_email})
-
     if not admin or admin.get("role") != "admin":
         return jsonify({"msg": "Unauthorized"}), 403
 
-    # Exclude password and _id
+    # ✅ Include _id
     employees = list(users_col.find(
-        {"role": {"$ne": "admin"}},  # optional: exclude admins
-        {"_id": 0, "name": 1, "email": 1, "department": 1, "position": 1}
+        {"role": {"$ne": "admin"}},
+        {"_id": 1, "name": 1, "email": 1, "department": 1, "position": 1}
     ))
 
+    # ✅ Convert _id to string
+    for emp in employees:
+        emp["_id"] = str(emp["_id"])
+
     return jsonify(employees), 200
+
 
 # @admin_bp.route("/edit-employee/<email>", methods=["PUT"])
 # @jwt_required()
