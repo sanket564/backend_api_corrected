@@ -6,6 +6,7 @@ import csv, io, os
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from pytz import timezone
+import dateutil.parser
 
 
 
@@ -408,6 +409,51 @@ def reject_checkin(checkin_id):
 #         #         r[k] = r[k].strftime("%I:%M %p")
 #     return jsonify(records), 200
 
+# @admin_bp.route("/records", methods=["GET"])
+# @jwt_required()
+# def all_attendance():
+#     logs_col = mongo.db.logs
+#     query = {}
+
+#     email = request.args.get('email')
+#     date = request.args.get('date')
+
+#     if email:
+#         query['email'] = email
+#     if date:
+#         query['date'] = date
+
+#     records = list(logs_col.find(query))
+#     india = timezone("Asia/Kolkata")
+
+#     for r in records:
+#         r["_id"] = str(r["_id"])
+#         checkin = r.get("checkin")
+#         checkout = r.get("checkout")
+
+#         # Convert and format checkin/checkout
+#         if isinstance(checkin, datetime):
+#             checkin_local = checkin.astimezone(india)
+#             r["checkin"] = checkin_local.strftime("%I:%M %p")
+#         else:
+#             checkin_local = None
+
+#         if isinstance(checkout, datetime):
+#             checkout_local = checkout.astimezone(india)
+#             r["checkout"] = checkout_local.strftime("%I:%M %p")
+#         else:
+#             checkout_local = None
+
+#         # Calculate hours worked
+#         if checkin_local and checkout_local:
+#             delta = checkout_local - checkin_local
+#             total_hours = round(delta.total_seconds() / 3600, 2)  # e.g., 8.75
+#             r["hours_worked"] = total_hours
+#         else:
+#             r["hours_worked"] = None
+
+#     return jsonify(records), 200
+
 @admin_bp.route("/records", methods=["GET"])
 @jwt_required()
 def all_attendance():
@@ -430,28 +476,40 @@ def all_attendance():
         checkin = r.get("checkin")
         checkout = r.get("checkout")
 
-        # Convert and format checkin/checkout
-        if isinstance(checkin, datetime):
-            checkin_local = checkin.astimezone(india)
-            r["checkin"] = checkin_local.strftime("%I:%M %p")
-        else:
-            checkin_local = None
+        checkin_dt, checkout_dt = None, None
 
-        if isinstance(checkout, datetime):
-            checkout_local = checkout.astimezone(india)
-            r["checkout"] = checkout_local.strftime("%I:%M %p")
-        else:
-            checkout_local = None
+        # Convert string or datetime to aware datetime
+        try:
+            if isinstance(checkin, str):
+                checkin_dt = dateutil.parser.parse(checkin)
+            elif isinstance(checkin, datetime):
+                checkin_dt = checkin
 
-        # Calculate hours worked
-        if checkin_local and checkout_local:
-            delta = checkout_local - checkin_local
-            total_hours = round(delta.total_seconds() / 3600, 2)  # e.g., 8.75
-            r["hours_worked"] = total_hours
-        else:
+            if isinstance(checkout, str):
+                checkout_dt = dateutil.parser.parse(checkout)
+            elif isinstance(checkout, datetime):
+                checkout_dt = checkout
+
+            # Localize
+            if checkin_dt:
+                checkin_dt = checkin_dt.astimezone(india)
+                r["checkin"] = checkin_dt.strftime("%I:%M %p")
+            if checkout_dt:
+                checkout_dt = checkout_dt.astimezone(india)
+                r["checkout"] = checkout_dt.strftime("%I:%M %p")
+
+            # Calculate hours
+            if checkin_dt and checkout_dt:
+                total_hours = round((checkout_dt - checkin_dt).total_seconds() / 3600, 2)
+                r["hours_worked"] = total_hours
+            else:
+                r["hours_worked"] = None
+        except Exception as e:
+            # In case of parsing errors
             r["hours_worked"] = None
 
     return jsonify(records), 200
+
 
 
 @admin_bp.route("/export", methods=["GET"])
