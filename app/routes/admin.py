@@ -19,6 +19,26 @@ def check_admin_exists():
     exists = users_col.find_one({"role": "admin"}) is not None
     return jsonify({"exists": exists})
 
+@admin_bp.route("/employees", methods=["GET"])
+@jwt_required()
+def get_all_employees():
+    users_col = mongo.db.users
+
+    admin_email = get_jwt_identity()
+    admin = users_col.find_one({"email": admin_email})
+
+    if not admin or admin.get("role") != "admin":
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    # Exclude password and _id
+    employees = list(users_col.find(
+        {"role": {"$ne": "admin"}},  # optional: exclude admins
+        {"_id": 0, "name": 1, "email": 1, "department": 1, "position": 1}
+    ))
+
+    return jsonify(employees), 200
+
+
 # @admin_bp.route("/checkins/pending", methods=["GET"])
 # @jwt_required()
 # def get_pending_checkins():
