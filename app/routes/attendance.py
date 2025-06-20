@@ -218,7 +218,7 @@ def checkin():
         "date": {"$ne": date_str}
     })
     if previous_log:
-        return jsonify({"msg": "You have a pending checkout from a previous day. Please contact admin."}), 400
+        return jsonify({"msg": "You have a pending checkout from a previous day. Please Checkout."}), 400
 
     # ✅ Insert as pending check-in
     pending_checkins_col.insert_one({
