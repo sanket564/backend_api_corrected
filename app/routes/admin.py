@@ -99,6 +99,27 @@ def edit_employee(emp_id):
     users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update_fields})
     return jsonify({"msg": "Employee updated successfully"}), 200
 
+@admin_bp.route("/employees/<emp_id>", methods=["DELETE"])
+@jwt_required()
+def delete_employee(emp_id):
+    users_col = mongo.db.users
+
+    admin_email = get_jwt_identity()
+    admin = users_col.find_one({"email": admin_email})
+    if not admin or admin.get("role") != "admin":
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    if not ObjectId.is_valid(emp_id):
+        return jsonify({"msg": "Invalid employee ID"}), 400
+
+    result = users_col.delete_one({"_id": ObjectId(emp_id)})
+
+    if result.deleted_count == 0:
+        return jsonify({"msg": "Employee not found or already deleted"}), 404
+
+    return jsonify({"msg": "Employee deleted successfully"}), 200
+
+
 
 
 
