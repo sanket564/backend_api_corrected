@@ -84,8 +84,15 @@ def get_pending_checkins():
 @jwt_required()
 def upload_biometric_logs():
     logs = request.get_json()
-    # Insert logs to MongoDB
-    return jsonify({"msg": f"{len(logs)} logs uploaded"}), 200
+
+    if not logs or not isinstance(logs, list):
+        return jsonify({"msg": "Invalid log format"}), 400
+
+    try:
+        mongo.db.biometric_logs.insert_many(logs)
+        return jsonify({"msg": f"{len(logs)} logs uploaded"}), 200
+    except Exception as e:
+        return jsonify({"msg": "Insert failed", "error": str(e)}), 500
 
 
 
