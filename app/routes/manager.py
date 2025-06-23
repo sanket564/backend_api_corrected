@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
+from app import mongo  # ✅ This gives access to mongo.db
+
 
 manager_bp = Blueprint('manager', __name__)
 
