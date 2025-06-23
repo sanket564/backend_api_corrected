@@ -161,14 +161,24 @@ def employee_summary():
         "pendingRequests": pending_days
     }), 200
 
+# @employee_bp.route("/holidays", methods=["GET"])
+# @jwt_required()
+# def get_employee_holidays():
+#     holidays_col = mongo.db.holidays
+#     holidays = list(holidays_col.find().sort("date", 1))
+
+#     for h in holidays:
+#         h["_id"] = str(h["_id"])
+#     return jsonify(holidays), 200
+
 @employee_bp.route("/holidays", methods=["GET"])
 @jwt_required()
 def get_employee_holidays():
     holidays_col = mongo.db.holidays
-    holidays = list(holidays_col.find().sort("date", 1))
+    
+    # Use projection to get only 'date' and 'name'
+    holidays = list(holidays_col.find({}, {"_id": 0, "date": 1, "name": 1}).sort("date", 1))
 
-    for h in holidays:
-        h["_id"] = str(h["_id"])
     return jsonify(holidays), 200
 
 
