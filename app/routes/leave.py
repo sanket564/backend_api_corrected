@@ -138,8 +138,11 @@ def my_leave_requests():
 @leave_bp.route("/approve/<leave_id>", methods=["POST"])
 @jwt_required()
 def approve_leave(leave_id):
+    from bson import ObjectId
     email = get_jwt_identity()
     leave_requests = mongo.db.leave_requests
+    users_col = mongo.db.users
+    holidays_col = mongo.db.holidays
 
     req = leave_requests.find_one({"_id": ObjectId(leave_id)})
     if not req:
@@ -152,8 +155,7 @@ def approve_leave(leave_id):
         return jsonify({"msg": "You are not authorized to approve this"}), 403
 
     data = request.get_json()
-    action = data.get("action")  # should be "approve" or "reject"
-
+    action = data.get("action")
     if action not in ("approve", "reject"):
         return jsonify({"msg": "Invalid action"}), 400
 
@@ -163,9 +165,7 @@ def approve_leave(leave_id):
         "at": datetime.now()
     }
 
-    update = {
-        "$push": {"approval_logs": approval_log}
-    }
+    update = {"$push": {"approval_logs": approval_log}}
 
     if action == "reject":
         update["$set"] = {
@@ -173,12 +173,33 @@ def approve_leave(leave_id):
             "current_approver": None,
             "updated_at": datetime.now()
         }
-    else:  # approved
+    else:
         chain = req.get("approver_chain", [])
         idx = chain.index(email)
-        if idx + 1 < len(chain):
+
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        # Find the next available approver
+        next_approver = None
+        for next_email in chain[idx + 1:]:
+            # Check if next approver is on leave
+            leave_conflict = mongo.db.leave_requests.find_one({
+                "email": next_email,
+                "status": "Accepted",
+                "from_date": {"$lte": today_str},
+                "to_date": {"$gte": today_str}
+            })
+
+            # Check if today is a holiday (and skip approver if it is)
+            is_holiday = holidays_col.find_one({"date": today_str})
+
+            if not leave_conflict and not is_holiday:
+                next_approver = next_email
+                break
+
+        if next_approver:
             update["$set"] = {
-                "current_approver": chain[idx + 1],
+                "current_approver": next_approver,
                 "updated_at": datetime.now()
             }
         else:
