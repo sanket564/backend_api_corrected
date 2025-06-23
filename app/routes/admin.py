@@ -836,7 +836,7 @@ def update_leave_status(req_id):
 
     return jsonify({"msg": "Leave status updated"}), 200
 
-@admin_bp.route("/admin/holidays", methods=["GET"])
+@admin_bp.route("/holidays", methods=["GET"])
 @jwt_required()
 def get_holidays():
     holidays_col = mongo.db.holidays
@@ -845,7 +845,7 @@ def get_holidays():
         h["_id"] = str(h["_id"])
     return jsonify(holidays), 200
     
-@admin_bp.route("/admin/holidays", methods=["POST"])
+@admin_bp.route("/holidays", methods=["POST"])
 @jwt_required()
 def add_holiday():
     holidays_col = mongo.db.holidays
@@ -868,7 +868,7 @@ def add_holiday():
 
     return jsonify({"msg": "Holiday added successfully"}), 201
 
-@admin_bp.route("/admin/holidays/<holiday_id>", methods=["DELETE"])
+@admin_bp.route("/holidays/<holiday_id>", methods=["DELETE"])
 @jwt_required()
 def delete_holiday(holiday_id):
     holidays_col = mongo.db.holidays
