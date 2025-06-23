@@ -8,7 +8,8 @@ all_blueprints = [
     auth_bp,
     attendance_bp,
     admin_bp,
-    employee_bp
+    employee_bp,
+    manager_bp
 ]
 
-_all_ = ['auth_bp', 'attendance_bp', 'admin_bp', 'employee_bp']
+_all_ = ['auth_bp', 'attendance_bp', 'admin_bp', 'employee_bp','manager_bp']
