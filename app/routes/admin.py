@@ -835,3 +835,51 @@ def update_leave_status(req_id):
     )
 
     return jsonify({"msg": "Leave status updated"}), 200
+
+@admin_bp.route("/admin/holidays", methods=["GET"])
+@jwt_required()
+def get_holidays():
+    holidays_col = mongo.db.holidays
+    holidays = list(holidays_col.find().sort("date", 1))
+    for h in holidays:
+        h["_id"] = str(h["_id"])
+    return jsonify(holidays), 200
+    
+@admin_bp.route("/admin/holidays", methods=["POST"])
+@jwt_required()
+def add_holiday():
+    holidays_col = mongo.db.holidays
+    data = request.get_json()
+    date = data.get("date")
+    name = data.get("name")
+
+    if not date or not name:
+        return jsonify({"msg": "Date and name are required"}), 400
+
+    # Ensure no duplicate for same date
+    if holidays_col.find_one({"date": date}):
+        return jsonify({"msg": "Holiday for this date already exists"}), 409
+
+    holidays_col.insert_one({
+        "date": date,
+        "name": name,
+        "created_at": datetime.now()
+    })
+
+    return jsonify({"msg": "Holiday added successfully"}), 201
+
+@admin_bp.route("/admin/holidays/<holiday_id>", methods=["DELETE"])
+@jwt_required()
+def delete_holiday(holiday_id):
+    holidays_col = mongo.db.holidays
+    if not ObjectId.is_valid(holiday_id):
+        return jsonify({"msg": "Invalid holiday ID"}), 400
+
+    result = holidays_col.delete_one({"_id": ObjectId(holiday_id)})
+    if result.deleted_count == 0:
+        return jsonify({"msg": "Holiday not found"}), 404
+
+    return jsonify({"msg": "Holiday deleted successfully"}), 200
+
+
+
