@@ -766,7 +766,7 @@ def add_employee():
     data = request.get_json()
 
     # --- 1. Validate required fields ----------------------------------------
-    required = ("name", "email", "password", "join_date", "employeeCode")
+    required = ("name", "email", "password", "join_date", "emp_code")
     if not all(k in data for k in required):
         return jsonify({"msg": "Missing required fields"}), 400
 
@@ -786,7 +786,7 @@ def add_employee():
         "password": hashed_password,
         "role": "employee",
         "join_date": data["join_date"],
-        "employeeCode": data["employeeCode"],
+        "emp_code": data["emp_code"],
         "department": data.get("department", "Not Assigned"),
         "position": data.get("position", "Not Assigned"),
         "bloodGroup": data.get("bloodGroup", "Not Provided"),
