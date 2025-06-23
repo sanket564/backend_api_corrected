@@ -533,11 +533,44 @@ def all_attendance():
 
 
 
+# @admin_bp.route("/export", methods=["GET"])
+# @jwt_required()
+# def export_attendance():
+#     logs_col = mongo.db.logs
+#     query = {}
+#     email = request.args.get('email')
+#     date = request.args.get('date')
+#     if email:
+#         query['email'] = {'$regex': f'^{email}$', '$options': 'i'}
+#     if date:
+#         query['date'] = date
+
+#     records = list(logs_col.find(query))
+#     if not records:
+#         return jsonify({"msg": "No records found"}), 404
+
+#     output = io.StringIO()
+#     writer = csv.writer(output)
+#     writer.writerow(["Email", "Date", "Check-In", "Check-Out"])
+
+#     for r in records:
+#         writer.writerow([
+#             r.get("email"),
+#             r.get("date"),
+#             r.get("checkin") if isinstance(r.get("checkin"), str)
+#             else r["checkin"].strftime("%I:%M %p") if r.get("checkin") else "",
+#             r.get("checkout") if isinstance(r.get("checkout"), str)
+#             else r["checkout"].strftime("%I:%M %p") if r.get("checkout") else ""
+#         ])
+#     output.seek(0)
+#     return Response(output.getvalue(), mimetype="text/csv",
+#                     headers={"Content-Disposition": "attachment; filename=attendance.csv"})
 @admin_bp.route("/export", methods=["GET"])
 @jwt_required()
 def export_attendance():
     logs_col = mongo.db.logs
     query = {}
+
     email = request.args.get('email')
     date = request.args.get('date')
     if email:
@@ -551,20 +584,62 @@ def export_attendance():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Email", "Date", "Check-In", "Check-Out"])
+    writer.writerow(["Email", "Date", "Check-In", "Check-Out", "Hours Worked", "Status"])
+
+    india = timezone("Asia/Kolkata")
 
     for r in records:
+        # Extract & format times
+        checkin = r.get("checkin")
+        checkout = r.get("checkout")
+        hours = r.get("hours_worked")
+
+        if isinstance(checkin, str):
+            checkin_str = checkin
+        elif isinstance(checkin, datetime):
+            checkin = checkin.astimezone(india)
+            checkin_str = checkin.strftime("%I:%M %p")
+        else:
+            checkin_str = ""
+
+        if isinstance(checkout, str):
+            checkout_str = checkout
+        elif isinstance(checkout, datetime):
+            checkout = checkout.astimezone(india)
+            checkout_str = checkout.strftime("%I:%M %p")
+        else:
+            checkout_str = ""
+
+        # Compute hours if needed
+        if hours is None and isinstance(checkin, datetime) and isinstance(checkout, datetime):
+            try:
+                hours = round((checkout - checkin).total_seconds() / 3600, 2)
+            except:
+                hours = None
+
+        # Determine status
+        if hours is None:
+            status = "Full-Day Leave"
+        elif hours >= 9:
+            status = "Present"
+        elif hours >= 4:
+            status = "Half-Day Leave"
+        else:
+            status = "Full-Day Leave"
+
         writer.writerow([
             r.get("email"),
             r.get("date"),
-            r.get("checkin") if isinstance(r.get("checkin"), str)
-            else r["checkin"].strftime("%I:%M %p") if r.get("checkin") else "",
-            r.get("checkout") if isinstance(r.get("checkout"), str)
-            else r["checkout"].strftime("%I:%M %p") if r.get("checkout") else ""
+            checkin_str,
+            checkout_str,
+            hours if hours is not None else "",
+            status
         ])
+
     output.seek(0)
     return Response(output.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=attendance.csv"})
+
 
 
 
