@@ -100,6 +100,26 @@ def employee_profile():
 
 
 
+# @employee_bp.route("/summary", methods=["GET"])
+# @jwt_required()
+# def employee_summary():
+#     identity = get_jwt_identity()
+#     email = identity["email"] if isinstance(identity, dict) else identity
+#     leave_col = mongo.db.leave_requests
+
+#     leave_logs = list(leave_col.find({"email": email}))
+#     pending_leaves = [leave for leave in leave_logs if leave.get("status") == "Pending"]
+#     accepted_leaves = [leave for leave in leave_logs if leave.get("status") == "Accepted"]
+
+#     leaves_taken = len(accepted_leaves)
+#     leaves_left = max(12 - leaves_taken, 0)
+
+#     return jsonify({
+#         "leavesTaken": leaves_taken,
+#         "leavesLeft": leaves_left,
+#         "pendingRequests": len(pending_leaves)
+#     }), 200
+
 @employee_bp.route("/summary", methods=["GET"])
 @jwt_required()
 def employee_summary():
@@ -108,17 +128,39 @@ def employee_summary():
     leave_col = mongo.db.leave_requests
 
     leave_logs = list(leave_col.find({"email": email}))
-    pending_leaves = [leave for leave in leave_logs if leave.get("status") == "Pending"]
-    accepted_leaves = [leave for leave in leave_logs if leave.get("status") == "Accepted"]
 
-    leaves_taken = len(accepted_leaves)
+    pending_days = 0
+    accepted_days = 0
+
+    for leave in leave_logs:
+        from_date = leave.get("from_date")
+        to_date = leave.get("to_date")
+        status = leave.get("status")
+
+        if from_date and to_date:
+            try:
+                start = datetime.strptime(from_date, "%Y-%m-%d").date()
+                end = datetime.strptime(to_date, "%Y-%m-%d").date()
+                num_days = (end - start).days + 1
+            except Exception:
+                num_days = 0
+        else:
+            num_days = 0
+
+        if status == "Pending":
+            pending_days += num_days
+        elif status == "Accepted":
+            accepted_days += num_days
+
+    leaves_taken = accepted_days
     leaves_left = max(12 - leaves_taken, 0)
 
     return jsonify({
         "leavesTaken": leaves_taken,
         "leavesLeft": leaves_left,
-        "pendingRequests": len(pending_leaves)
+        "pendingRequests": pending_days
     }), 200
+
 
 
 @employee_bp.route("/update-profile", methods=["PUT"])
