@@ -8,6 +8,7 @@ from app.routes.admin import admin_bp
 from app.routes.leave import leave_bp
 from app.routes.employee import employee_bp
 from app.routes.success import success_bp
+from app.routes.manager import manager_bp
 
 def create_app():
     app = Flask(__name__)
@@ -30,6 +31,7 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(leave_bp, url_prefix="/leave")
     app.register_blueprint(employee_bp, url_prefix="/employee")
+    app.register_blueprint(manager_bp, url_prefix="/manager")
     app.register_blueprint(success_bp, url_prefix="/")
 
     return app
