@@ -764,6 +764,8 @@ def total_employees():
 def add_employee():
     users_col = mongo.db.users
     data = request.get_json()
+    reporting_to = data.get("reporting_to", [])  # List of emails
+    proxy_approver = data.get("proxy_approver", None)
 
     # --- 1. Validate required fields ----------------------------------------
     required = ("name", "email", "password", "join_date", "emp_code")
@@ -790,6 +792,8 @@ def add_employee():
         "department": data.get("department", "Not Assigned"),
         "position": data.get("position", "Not Assigned"),
         "bloodGroup": data.get("bloodGroup", "Not Provided"),
+        "reporting_to": reporting_to,
+        "proxy_approver": proxy_approver
         # optional: "managerEmail": data.get("managerEmail")
     })
 
