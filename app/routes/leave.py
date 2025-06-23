@@ -191,3 +191,19 @@ def approve_leave(leave_id):
     leave_requests.update_one({"_id": ObjectId(leave_id)}, update)
     return jsonify({"msg": f"Leave {action}d successfully"}), 200
 
+@leave_bp.route("/pending-approvals", methods=["GET"])
+@jwt_required()
+def pending_approvals():
+    email = get_jwt_identity()
+    leave_requests = mongo.db.leave_requests
+
+    pending = list(leave_requests.find({
+        "status": "Pending",
+        "current_approver": email
+    }).sort("submitted_at", -1))
+
+    for req in pending:
+        req["_id"] = str(req["_id"])
+    return jsonify(pending), 200
+
+
