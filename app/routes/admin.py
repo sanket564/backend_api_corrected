@@ -774,7 +774,7 @@ def add_employee():
     if users_col.find_one({"email": data["email"]}):
         return jsonify({"msg": "Email already exists"}), 409
 
-    if users_col.find_one({"employeeCode": data["employeeCode"]}):
+    if users_col.find_one({"emp_code": data["emp_code"]}):
         return jsonify({"msg": "Employee code already exists"}), 409
 
     # --- 3. Insert employee -------------------------------------------------
