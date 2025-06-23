@@ -94,7 +94,7 @@ def employee_profile():
         "department": user.get("department"),
         "bloodGroup": user.get("bloodGroup"),
         "join_date": user.get("join_date"),
-        "employee_code": user.get("employee_code")  # ✅ Added employee code
+        "emp_code": user.get("emp_code")  # ✅ Added employee code
     }), 200
 
 
