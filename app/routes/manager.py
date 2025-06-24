@@ -21,7 +21,6 @@ def team_list():
     return jsonify(team), 200
 
 @manager_bp.route("/checkins/pending", methods=["GET"])
-@admin_required()
 @jwt_required()
 def manager_pending_checkins():
     email = get_jwt_identity()
