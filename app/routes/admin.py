@@ -338,9 +338,50 @@ def upload_biometric_logs():
 
 #     return jsonify({"msg": "Check-in approved successfully."}), 200
 
+# @admin_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
+# @jwt_required()
+# def approve_checkin(checkin_id):
+#     users_col = mongo.db.users
+#     pending_checkins_col = mongo.db.pending_checkins
+#     logs_col = mongo.db.logs
+
+#     email = get_jwt_identity()
+#     admin = users_col.find_one({"email": email})
+#     if not admin or admin["role"] != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     checkin = pending_checkins_col.find_one({"_id": ObjectId(checkin_id)})
+#     if not checkin:
+#         return jsonify({"msg": "Check-in request not found"}), 404
+
+#     checkin_dt = checkin.get("requested_at")
+#     if not checkin_dt:
+#         return jsonify({"msg": "Invalid check-in time"}), 400
+
+#     date_str = checkin["date"]
+
+#     existing = logs_col.find_one({"email": checkin["email"], "date": date_str})
+#     if existing:
+#         return jsonify({"msg": "Employee already has a check-in for this date"}), 400
+
+#     logs_col.insert_one({
+#         "email": checkin["email"],
+#         "date": date_str,
+#         "checkin": checkin_dt,  # ✅ Store full UTC datetime
+#         "checkout": None,
+#         "approved": True
+#     })
+
+#     pending_checkins_col.update_one(
+#         {"_id": ObjectId(checkin_id)},
+#         {"$set": {"status": "Approved"}}
+#     )
+
+#     return jsonify({"msg": "Check-in approved successfully."}), 200
+
 @admin_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
 @jwt_required()
-def approve_checkin(checkin_id):
+def admin_approve_checkin(checkin_id):
     users_col = mongo.db.users
     pending_checkins_col = mongo.db.pending_checkins
     logs_col = mongo.db.logs
@@ -354,20 +395,15 @@ def approve_checkin(checkin_id):
     if not checkin:
         return jsonify({"msg": "Check-in request not found"}), 404
 
-    checkin_dt = checkin.get("requested_at")
-    if not checkin_dt:
-        return jsonify({"msg": "Invalid check-in time"}), 400
-
     date_str = checkin["date"]
-
     existing = logs_col.find_one({"email": checkin["email"], "date": date_str})
     if existing:
-        return jsonify({"msg": "Employee already has a check-in for this date"}), 400
+        return jsonify({"msg": "Check-in already exists"}), 400
 
     logs_col.insert_one({
         "email": checkin["email"],
         "date": date_str,
-        "checkin": checkin_dt,  # ✅ Store full UTC datetime
+        "checkin": checkin["requested_at"],
         "checkout": None,
         "approved": True
     })
@@ -377,11 +413,37 @@ def approve_checkin(checkin_id):
         {"$set": {"status": "Approved"}}
     )
 
-    return jsonify({"msg": "Check-in approved successfully."}), 200
+    return jsonify({"msg": "Admin approved check-in"}), 200
+
+
+# @admin_bp.route("/checkins/reject/<checkin_id>", methods=["POST"])
+# @jwt_required()
+# def reject_checkin(checkin_id):
+#     users_col = mongo.db.users
+#     pending_checkins_col = mongo.db.pending_checkins
+
+#     email = get_jwt_identity()
+#     admin = users_col.find_one({"email": email})
+#     if not admin or admin["role"] != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     checkin = pending_checkins_col.find_one({"_id": ObjectId(checkin_id)})
+#     if not checkin:
+#         return jsonify({"msg": "Check-in request not found"}), 404
+
+#     if checkin.get("status") == "Rejected":
+#         return jsonify({"msg": "Check-in request is already rejected"}), 400
+
+#     pending_checkins_col.update_one(
+#         {"_id": ObjectId(checkin_id)},
+#         {"$set": {"status": "Rejected"}}
+#     )
+
+#     return jsonify({"msg": "Check-in rejected successfully."}), 200
 
 @admin_bp.route("/checkins/reject/<checkin_id>", methods=["POST"])
 @jwt_required()
-def reject_checkin(checkin_id):
+def admin_reject_checkin(checkin_id):
     users_col = mongo.db.users
     pending_checkins_col = mongo.db.pending_checkins
 
@@ -392,17 +454,15 @@ def reject_checkin(checkin_id):
 
     checkin = pending_checkins_col.find_one({"_id": ObjectId(checkin_id)})
     if not checkin:
-        return jsonify({"msg": "Check-in request not found"}), 404
-
-    if checkin.get("status") == "Rejected":
-        return jsonify({"msg": "Check-in request is already rejected"}), 400
+        return jsonify({"msg": "Check-in not found"}), 404
 
     pending_checkins_col.update_one(
         {"_id": ObjectId(checkin_id)},
         {"$set": {"status": "Rejected"}}
     )
 
-    return jsonify({"msg": "Check-in rejected successfully."}), 200
+    return jsonify({"msg": "Admin rejected check-in"}), 200
+
 
 
 
