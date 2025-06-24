@@ -824,8 +824,10 @@ def total_employees():
 def add_employee():
     users_col = mongo.db.users
     data = request.get_json()
+
     reporting_to = data.get("reporting_to", [])  # List of emails
     proxy_approver = data.get("proxy_approver", None)
+    role = data.get("role", "employee")  # 🔄 default to employee if not provided
 
     # --- 1. Validate required fields ----------------------------------------
     required = ("name", "email", "password", "join_date", "emp_code")
@@ -846,7 +848,7 @@ def add_employee():
         "name": data["name"],
         "email": data["email"],
         "password": hashed_password,
-        "role": "employee",
+        "role": role,  # ✅ Use role from frontend
         "join_date": data["join_date"],
         "emp_code": data["emp_code"],
         "department": data.get("department", "Not Assigned"),
@@ -854,12 +856,9 @@ def add_employee():
         "bloodGroup": data.get("bloodGroup", "Not Provided"),
         "reporting_to": reporting_to,
         "proxy_approver": proxy_approver
-        # optional: "managerEmail": data.get("managerEmail")
     })
 
-    return jsonify({"msg": "Employee added successfully"}), 201
-
-
+    return jsonify({"msg": f"{role.capitalize()} added successfully"}), 201
 
 
 @admin_bp.route("/leave-requests", methods=["GET"])
