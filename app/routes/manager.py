@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from app import mongo   # ✅ This gives access to mongo.db
 from bson import ObjectId
+from pytz import timezone
 
 
 manager_bp = Blueprint('manager', __name__)
@@ -25,16 +26,29 @@ def manager_pending_checkins():
     email = get_jwt_identity()
     users_col = mongo.db.users
     checkins_col = mongo.db.pending_checkins
-    team = mongo.db.users.find({"reporting_to": {"$in": [email]}}, {"email": 1})
 
+    # Step 1: Get all users who report to this manager
+    team = users_col.find({"reporting_to": {"$in": [email]}}, {"email": 1})
     team_emails = [u["email"] for u in team]
+
+    # Step 2: Get pending check-ins for those emails
     pending = list(checkins_col.find({"email": {"$in": team_emails}, "status": "Pending"}))
+    india = timezone("Asia/Kolkata")
 
+    result = []
     for p in pending:
-        p["_id"] = str(p["_id"])
+        ist_time = p["requested_at"].astimezone(india) if p.get("requested_at") else None
 
-    return jsonify(pending), 200
+        result.append({
+            "_id": str(p["_id"]),
+            "email": p["email"],
+            "date": p["date"],
+            "status": p["status"],
+            "checkin_time": ist_time.strftime("%I:%M %p") if ist_time else "—"
+        })
 
+    return jsonify(result), 200
+    
 @manager_bp.route("/checkins/approve/<checkin_id>", methods=["POST"])
 @jwt_required()
 def manager_approve_checkin(checkin_id):
