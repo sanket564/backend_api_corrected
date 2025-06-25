@@ -20,11 +20,32 @@ def check_admin_exists():
     exists = users_col.find_one({"role": "admin"}) is not None
     return jsonify({"exists": exists})
 
+# @admin_bp.route("/employees/<int:EmployeeId>", methods=["GET"])
+# @jwt_required()
+# def get_employee_details(EmployeeId):
+#     users_col = mongo.db.users
+#     employees_col = mongo.db.employees
+
+#     requester_email = get_jwt_identity()
+#     admin = users_col.find_one({"email": requester_email})
+
+#     if not admin or admin.get("role") != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     print(f"🔍 Looking for EmployeeId: {EmployeeId} ({type(EmployeeId)})")
+
+#     emp = employees_col.find_one({"EmployeeId": EmployeeId})
+#     if not emp:
+#         return jsonify({"msg": "Employee not found"}), 404
+
+#     emp["_id"] = str(emp["_id"])
+#     return jsonify(emp), 200
+
 @admin_bp.route("/employees/<int:EmployeeId>", methods=["GET"])
 @jwt_required()
 def get_employee_details(EmployeeId):
     users_col = mongo.db.users
-    employees_col = mongo.db.employees
+    employee_master_col = mongo.db.employee_master  # ✅ correct collection
 
     requester_email = get_jwt_identity()
     admin = users_col.find_one({"email": requester_email})
@@ -34,12 +55,19 @@ def get_employee_details(EmployeeId):
 
     print(f"🔍 Looking for EmployeeId: {EmployeeId} ({type(EmployeeId)})")
 
-    emp = employees_col.find_one({"EmployeeId": EmployeeId})
+    emp = employee_master_col.find_one({
+        "$or": [
+            {"EmployeeId": EmployeeId},
+            {"EmployeeId": str(EmployeeId)}
+        ]
+    })
+
     if not emp:
         return jsonify({"msg": "Employee not found"}), 404
 
     emp["_id"] = str(emp["_id"])
     return jsonify(emp), 200
+
 
 
 @admin_bp.route("/employees", methods=["GET"])
