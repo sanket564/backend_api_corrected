@@ -41,7 +41,7 @@ def check_admin_exists():
 #     emp["_id"] = str(emp["_id"])
 #     return jsonify(emp), 200
 
-@admin_bp.route("/employees/<int:EmployeeId>", methods=["GET"])
+@admin_bp.route("/employees/biometric/<int:EmployeeId>", methods=["GET"])
 @jwt_required()
 def get_employee_details(EmployeeId):
     users_col = mongo.db.users
