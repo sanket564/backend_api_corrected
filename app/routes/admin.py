@@ -42,6 +42,40 @@ def get_all_employees():
 
     return jsonify(employees), 200
 
+# @admin_bp.route("/biometric-logs", methods=["GET"])
+# @jwt_required()
+# def get_biometric_logs():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.biometric_logs  # your MongoDB collection
+
+#     # 🔐 Check if the logged-in user is an admin
+#     user = users_col.find_one({"email": email})
+#     if not user or user.get("role") != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     # 🔍 Optional Filters
+#     query = {}
+#     date_filter = request.args.get("date")
+#     employee_id = request.args.get("employee_id")
+
+#     if date_filter:
+#         try:
+#             datetime.strptime(date_filter, "%Y-%m-%d")  # Validate format
+#             query["AttendanceDate"] = date_filter
+#         except ValueError:
+#             return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+#     if employee_id:
+#         query["EmployeeId"] = int(employee_id)
+
+#     # 📤 Fetch and return logs
+#     logs = list(logs_col.find(query).sort("AttendanceDate", -1))
+#     for log in logs:
+#         log["_id"] = str(log["_id"])
+
+#     return jsonify(logs), 200
+
 @admin_bp.route("/biometric-logs", methods=["GET"])
 @jwt_required()
 def get_biometric_logs():
@@ -67,14 +101,22 @@ def get_biometric_logs():
             return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
 
     if employee_id:
-        query["EmployeeId"] = int(employee_id)
+        try:
+            query["EmployeeId"] = int(employee_id)
+        except ValueError:
+            return jsonify({"msg": "Employee ID must be an integer."}), 400
 
     # 📤 Fetch and return logs
     logs = list(logs_col.find(query).sort("AttendanceDate", -1))
     for log in logs:
         log["_id"] = str(log["_id"])
 
+        # 🔁 Convert duration from minutes to hours
+        if "Duration" in log and isinstance(log["Duration"], (int, float)):
+            log["DurationHours"] = round(log["Duration"] / 60.0, 2)
+
     return jsonify(logs), 200
+
 
 
 
