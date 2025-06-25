@@ -41,11 +41,11 @@ def check_admin_exists():
 #     emp["_id"] = str(emp["_id"])
 #     return jsonify(emp), 200
 
-@admin_bp.route("/employees/biometric/<int:EmployeeId>", methods=["GET"])
+@admin_bp.route("/employees/biometric", methods=["GET"])
 @jwt_required()
-def get_employee_details(EmployeeId):
+def get_employees():
     users_col = mongo.db.users
-    employee_master_col = mongo.db.employee_master  # ✅ correct collection
+    employee_master_col = mongo.db.employee_master
 
     requester_email = get_jwt_identity()
     admin = users_col.find_one({"email": requester_email})
@@ -53,20 +53,30 @@ def get_employee_details(EmployeeId):
     if not admin or admin.get("role") != "admin":
         return jsonify({"msg": "Unauthorized"}), 403
 
-    print(f"🔍 Looking for EmployeeId: {EmployeeId} ({type(EmployeeId)})")
+    # 🔍 Optional filter
+    employee_id = request.args.get("EmployeeId")
 
-    emp = employee_master_col.find_one({
-        "$or": [
-            {"EmployeeId": EmployeeId},
-            {"EmployeeId": str(EmployeeId)}
+    query = {}
+    if employee_id:
+        try:
+            employee_id = int(employee_id)
+        except ValueError:
+            return jsonify({"msg": "Invalid EmployeeId"}), 400
+
+        query["$or"] = [
+            {"EmployeeId": employee_id},
+            {"EmployeeId": str(employee_id)}
         ]
-    })
 
-    if not emp:
+    employees = list(employee_master_col.find(query).sort("EmployeeId", 1))
+
+    for emp in employees:
+        emp["_id"] = str(emp["_id"])
+
+    if employee_id and not employees:
         return jsonify({"msg": "Employee not found"}), 404
 
-    emp["_id"] = str(emp["_id"])
-    return jsonify(emp), 200
+    return jsonify(employees), 200
 
 
 
