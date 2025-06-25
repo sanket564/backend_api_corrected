@@ -42,7 +42,7 @@ def get_all_employees():
 
     return jsonify(employees), 200
 
-@admin_bp.route("/admin/biometric-logs", methods=["GET"])
+@admin_bp.route("/biometric-logs", methods=["GET"])
 @jwt_required()
 def get_biometric_logs():
     email = get_jwt_identity()
