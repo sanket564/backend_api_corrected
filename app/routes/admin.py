@@ -7,9 +7,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from pytz import timezone
 import dateutil.parser
-
-
-
+from dateutil.relativedelta import relativedelta
 from app.extensions import mongo
 
 admin_bp = Blueprint("admin", __name__)
@@ -1007,36 +1005,78 @@ def total_employees():
 #     return jsonify({"msg": "Employee added successfully"}), 201
 
 
+# @admin_bp.route("/add-employee", methods=["POST"])
+# @jwt_required()
+# def add_employee():
+#     users_col = mongo.db.users
+#     data = request.get_json()
+
+#     reporting_to = data.get("reporting_to", [])  # List of emails
+#     proxy_approver = data.get("proxy_approver", None)
+#     role = data.get("role", "employee")  # 🔄 default to employee if not provided
+
+#     # --- 1. Validate required fields ----------------------------------------
+#     required = ("name", "email", "password", "join_date", "emp_code")
+#     if not all(k in data for k in required):
+#         return jsonify({"msg": "Missing required fields"}), 400
+
+#     # --- 2. Uniqueness checks ----------------------------------------------
+#     if users_col.find_one({"email": data["email"]}):
+#         return jsonify({"msg": "Email already exists"}), 409
+
+#     if users_col.find_one({"emp_code": data["emp_code"]}):
+#         return jsonify({"msg": "Employee code already exists"}), 409
+
+#     # --- 3. Insert employee -------------------------------------------------
+#     hashed_password = generate_password_hash(data["password"])
+
+#     users_col.insert_one({
+#         "name": data["name"],
+#         "email": data["email"],
+#         "password": hashed_password,
+#         "role": role,  # ✅ Use role from frontend
+#         "join_date": data["join_date"],
+#         "emp_code": data["emp_code"],
+#         "department": data.get("department", "Not Assigned"),
+#         "position": data.get("position", "Not Assigned"),
+#         "bloodGroup": data.get("bloodGroup", "Not Provided"),
+#         "reporting_to": reporting_to,
+#         "proxy_approver": proxy_approver
+#     })
+
+#     return jsonify({"msg": f"{role.capitalize()} added successfully"}), 201
+
+
+
 @admin_bp.route("/add-employee", methods=["POST"])
 @jwt_required()
 def add_employee():
     users_col = mongo.db.users
+    leave_balances_col = mongo.db.leave_balances  # ✅ New collection
     data = request.get_json()
 
-    reporting_to = data.get("reporting_to", [])  # List of emails
+    reporting_to = data.get("reporting_to", [])
     proxy_approver = data.get("proxy_approver", None)
-    role = data.get("role", "employee")  # 🔄 default to employee if not provided
+    role = data.get("role", "employee")
 
-    # --- 1. Validate required fields ----------------------------------------
     required = ("name", "email", "password", "join_date", "emp_code")
     if not all(k in data for k in required):
         return jsonify({"msg": "Missing required fields"}), 400
 
-    # --- 2. Uniqueness checks ----------------------------------------------
     if users_col.find_one({"email": data["email"]}):
         return jsonify({"msg": "Email already exists"}), 409
 
     if users_col.find_one({"emp_code": data["emp_code"]}):
         return jsonify({"msg": "Employee code already exists"}), 409
 
-    # --- 3. Insert employee -------------------------------------------------
     hashed_password = generate_password_hash(data["password"])
 
+    # --- Insert into users collection ---
     users_col.insert_one({
         "name": data["name"],
         "email": data["email"],
         "password": hashed_password,
-        "role": role,  # ✅ Use role from frontend
+        "role": role,
         "join_date": data["join_date"],
         "emp_code": data["emp_code"],
         "department": data.get("department", "Not Assigned"),
@@ -1046,7 +1086,23 @@ def add_employee():
         "proxy_approver": proxy_approver
     })
 
+    # --- Insert into leave_balances collection ---
+    try:
+        join_date = datetime.strptime(data["join_date"], "%Y-%m-%d")
+        probation_end = join_date + relativedelta(months=3)
+    except Exception as e:
+        return jsonify({"msg": f"Invalid join_date format. Expected YYYY-MM-DD. Error: {str(e)}"}), 400
+
+    leave_balances_col.insert_one({
+        "email": data["email"],
+        "join_date": join_date,
+        "probation_end": probation_end,
+        "pl_balance": 0,
+        "last_updated": datetime.now()
+    })
+
     return jsonify({"msg": f"{role.capitalize()} added successfully"}), 201
+
 
 
 @admin_bp.route("/leave-requests", methods=["GET"])
