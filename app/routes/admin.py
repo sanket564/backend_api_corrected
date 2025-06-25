@@ -20,9 +20,9 @@ def check_admin_exists():
     exists = users_col.find_one({"role": "admin"}) is not None
     return jsonify({"exists": exists})
 
-@admin_bp.route("/employees/<int:employee_id>", methods=["GET"])
+@admin_bp.route("/employees/<int:EmployeeId>", methods=["GET"])
 @jwt_required()
-def get_employee_details(employee_id):
+def get_employee_details(EmployeeId):
     users_col = mongo.db.users  # Assuming admin info is here
     employees_col = mongo.db.employees  # Your biometric employee collection
 
@@ -33,7 +33,7 @@ def get_employee_details(employee_id):
         return jsonify({"msg": "Unauthorized"}), 403
 
     # 🔍 Find employee by EmployeeId
-    emp = employees_col.find_one({"EmployeeId": employee_id})
+    emp = employees_col.find_one({"EmployeeId": EmployeeId})
     if not emp:
         return jsonify({"msg": "Employee not found"}), 404
 
