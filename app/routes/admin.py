@@ -77,6 +77,16 @@ def get_employees():
     return jsonify(employees), 200
 
 
+@admin_bp.route("/recalculate-leaves", methods=["POST"])
+@jwt_required()
+def recalculate_leaves():
+    user = mongo.db.users.find_one({"email": get_jwt_identity()})
+    if not user or user.get("role") != "admin":
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    update_leave_balance()
+    return jsonify({"msg": "Leave balances updated successfully."}), 200
+
 
 @admin_bp.route("/employees", methods=["GET"])
 @jwt_required()
