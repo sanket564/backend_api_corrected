@@ -227,4 +227,23 @@ def pending_approvals():
         req["_id"] = str(req["_id"])
     return jsonify(pending), 200
 
+@leave_bp.route("/my-leave-balance", methods=["GET"])
+@jwt_required()
+def get_leave_balance():
+    email = get_jwt_identity()
+    users_col = mongo.db.users
+
+    user = users_col.find_one({"email": email})
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
+    dynamic_balance = calculate_dynamic_leave_balance(join_date)
+
+    return jsonify({
+        "email": email,
+        "dynamic_pl_balance": dynamic_balance
+    }), 200
+
+
 
