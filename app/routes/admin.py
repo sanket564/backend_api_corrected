@@ -26,22 +26,21 @@ def get_employee_details(EmployeeId):
     users_col = mongo.db.users
     employees_col = mongo.db.employees
 
-    # 🔐 Admin check
     requester_email = get_jwt_identity()
-    admin_user = users_col.find_one({"email": requester_email})
-    if not admin_user or admin_user.get("role") != "admin":
+    admin = users_col.find_one({"email": requester_email})
+
+    if not admin or admin.get("role") != "admin":
         return jsonify({"msg": "Unauthorized"}), 403
 
-    # 🔍 Search for EmployeeId as int or str
-    emp = employees_col.find_one({
-        "EmployeeId": {"$in": [EmployeeId, str(EmployeeId)]}
-    })
+    print(f"🔍 Looking for EmployeeId: {EmployeeId} ({type(EmployeeId)})")
 
+    emp = employees_col.find_one({"EmployeeId": EmployeeId})
     if not emp:
         return jsonify({"msg": "Employee not found"}), 404
 
     emp["_id"] = str(emp["_id"])
     return jsonify(emp), 200
+
 
 @admin_bp.route("/employees", methods=["GET"])
 @jwt_required()
