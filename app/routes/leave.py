@@ -227,23 +227,55 @@ def pending_approvals():
         req["_id"] = str(req["_id"])
     return jsonify(pending), 200
 
+# @leave_bp.route("/my-leave-balance", methods=["GET"])
+# @jwt_required()
+# def get_leave_balance():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+
+#     user = users_col.find_one({"email": email})
+#     if not user:
+#         return jsonify({"msg": "User not found"}), 404
+
+#     join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
+#     dynamic_balance = calculate_dynamic_leave_balance(join_date)
+
+#     return jsonify({
+#         "email": email,
+#         "dynamic_pl_balance": dynamic_balance
+#     }), 200
 @leave_bp.route("/my-leave-balance", methods=["GET"])
 @jwt_required()
 def get_leave_balance():
     email = get_jwt_identity()
     users_col = mongo.db.users
+    leave_requests = mongo.db.leave_requests
 
     user = users_col.find_one({"email": email})
     if not user:
         return jsonify({"msg": "User not found"}), 404
 
-    join_date = datetime.strptime(user["join_date"], "%Y-%m-%d")
-    dynamic_balance = calculate_dynamic_leave_balance(join_date)
+    join_date = user.get("join_date")
+    if not join_date:
+        return jsonify({"msg": "Join date not found"}), 400
 
-    return jsonify({
+    # 🔢 Count total leave days taken
+    leaves = leave_requests.find({
         "email": email,
-        "dynamic_pl_balance": dynamic_balance
-    }), 200
+        "status": {"$in": ["Accepted", "Approved"]},
+    })
+
+    total_days = 0
+    for leave in leaves:
+        from_date = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
+        to_date = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
+        total_days += (to_date - from_date).days + 1
+
+    # 💡 Compute based on complete policy
+    result = calculate_dynamic_leave_balance(join_date, total_days)
+    result["email"] = email
+
+    return jsonify(result), 200
 
 
 
