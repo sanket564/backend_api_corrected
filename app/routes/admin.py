@@ -42,6 +42,41 @@ def get_all_employees():
 
     return jsonify(employees), 200
 
+@admin_bp.route("/admin/biometric-logs", methods=["GET"])
+@jwt_required()
+def get_biometric_logs():
+    email = get_jwt_identity()
+    users_col = mongo.db.users
+    logs_col = mongo.db.biometric_logs  # your MongoDB collection
+
+    # 🔐 Check if the logged-in user is an admin
+    user = users_col.find_one({"email": email})
+    if not user or user.get("role") != "admin":
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    # 🔍 Optional Filters
+    query = {}
+    date_filter = request.args.get("date")
+    employee_id = request.args.get("employee_id")
+
+    if date_filter:
+        try:
+            datetime.strptime(date_filter, "%Y-%m-%d")  # Validate format
+            query["AttendanceDate"] = date_filter
+        except ValueError:
+            return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+    if employee_id:
+        query["EmployeeId"] = int(employee_id)
+
+    # 📤 Fetch and return logs
+    logs = list(logs_col.find(query).sort("AttendanceDate", -1))
+    for log in logs:
+        log["_id"] = str(log["_id"])
+
+    return jsonify(logs), 200
+
+
 
 # @admin_bp.route("/edit-employee/<email>", methods=["PUT"])
 # @jwt_required()
