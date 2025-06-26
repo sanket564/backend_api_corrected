@@ -120,13 +120,56 @@ def employee_profile():
 #         "pendingRequests": len(pending_leaves)
 #     }), 200
 
+# @employee_bp.route("/summary", methods=["GET"])
+# @jwt_required()
+# def employee_summary():
+#     identity = get_jwt_identity()
+#     email = identity["email"] if isinstance(identity, dict) else identity
+#     leave_col = mongo.db.leave_requests
+
+#     leave_logs = list(leave_col.find({"email": email}))
+
+#     pending_days = 0
+#     accepted_days = 0
+
+#     for leave in leave_logs:
+#         from_date = leave.get("from_date")
+#         to_date = leave.get("to_date")
+#         status = leave.get("status")
+
+#         if from_date and to_date:
+#             try:
+#                 start = datetime.strptime(from_date, "%Y-%m-%d").date()
+#                 end = datetime.strptime(to_date, "%Y-%m-%d").date()
+#                 num_days = (end - start).days + 1
+#             except Exception:
+#                 num_days = 0
+#         else:
+#             num_days = 0
+
+#         if status == "Pending":
+#             pending_days += num_days
+#         elif status == "Accepted":
+#             accepted_days += num_days
+
+#     leaves_taken = accepted_days
+#     leaves_left = max(12 - leaves_taken, 0)
+
+#     return jsonify({
+#         "leavesTaken": leaves_taken,
+#         "leavesLeft": leaves_left,
+#         "pendingRequests": pending_days
+#     }), 200
+
 @employee_bp.route("/summary", methods=["GET"])
 @jwt_required()
 def employee_summary():
     identity = get_jwt_identity()
     email = identity["email"] if isinstance(identity, dict) else identity
     leave_col = mongo.db.leave_requests
+    balance_col = mongo.db.leave_balance  # ✅ collection where admin stores balance
 
+    # 📊 Fetch all leave logs
     leave_logs = list(leave_col.find({"email": email}))
 
     pending_days = 0
@@ -152,14 +195,20 @@ def employee_summary():
         elif status == "Accepted":
             accepted_days += num_days
 
+    # 🔄 Fetch dynamic total from leave_balances
+    record = balance_col.find_one({"email": email})
+    total_allocated = record["balance"] if record and "balance" in record else 0
+
     leaves_taken = accepted_days
-    leaves_left = max(12 - leaves_taken, 0)
+    leaves_left = max(total_allocated - leaves_taken, 0)
 
     return jsonify({
         "leavesTaken": leaves_taken,
         "leavesLeft": leaves_left,
-        "pendingRequests": pending_days
+        "pendingRequests": pending_days,
+        "totalAllocated": total_allocated
     }), 200
+
 
 # @employee_bp.route("/holidays", methods=["GET"])
 # @jwt_required()
