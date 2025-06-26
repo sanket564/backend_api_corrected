@@ -1284,6 +1284,22 @@ def delete_holiday(holiday_id):
         return jsonify({"msg": "Holiday not found"}), 404
 
     return jsonify({"msg": "Holiday deleted successfully"}), 200
+    
+@admin_bp.route("/leave-balances", methods=["GET"])
+@jwt_required()
+def list_all_balances():
+    users_col = mongo.db.users
+    leave_balances = mongo.db.leave_balances
+
+    admin_email = get_jwt_identity()
+    admin = users_col.find_one({"email": admin_email})
+    if not admin or admin.get("role") != "admin":
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    all_balances = list(leave_balances.find())
+    for b in all_balances:
+        b["_id"] = str(b["_id"])
+    return jsonify(all_balances), 200
 
 
 
