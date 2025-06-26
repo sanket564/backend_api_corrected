@@ -87,6 +87,50 @@ def recalculate_leaves():
     update_leave_balance()
     return jsonify({"msg": "Leave balances updated successfully."}), 200
 
+@admin_bp.route("/employees/<emp_id>", methods=["PUT"])
+@jwt_required()
+def edit_employee(emp_id):
+    users_col = mongo.db.users
+    leave_balance = mongo.db.leave_balance
+
+    admin_email = get_jwt_identity()
+    admin = users_col.find_one({"email": admin_email})
+    if not admin or admin.get("role") != "admin":
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    if not ObjectId.is_valid(emp_id):
+        return jsonify({"msg": "Invalid employee ID"}), 400
+
+    employee = users_col.find_one({"_id": ObjectId(emp_id)})
+    if not employee:
+        return jsonify({"msg": "Employee not found"}), 404
+
+    data = request.get_json()
+    update_fields = {}
+    for field in ["name", "email", "department", "position"]:
+        if field in data:
+            update_fields[field] = data[field]
+
+    # ✅ Handle leave balance update
+    if "leave_balance" in data:
+        leave_balance.update_one(
+            {"email": employee["email"]},
+            {
+                "$set": {
+                    "balance": data["leave_balance"],
+                    "updated_by": admin_email,
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+
+    if update_fields:
+        users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update_fields})
+
+    return jsonify({"msg": "Employee updated successfully"}), 200
+
+
 
 @admin_bp.route("/employees", methods=["GET"])
 @jwt_required()
