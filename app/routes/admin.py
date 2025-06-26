@@ -185,6 +185,56 @@ def get_all_employees():
 
 #     return jsonify(logs), 200
 
+# @admin_bp.route("/biometric-logs", methods=["GET"])
+# @jwt_required()
+# def get_biometric_logs():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.biometric_logs
+
+#     # 🔐 Admin auth check
+#     user = users_col.find_one({"email": email})
+#     if not user or user.get("role") != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     # 🔍 Optional filters
+#     query = {}
+#     date_filter = request.args.get("date")
+#     employee_id = request.args.get("employee_id")
+
+#     if date_filter:
+#         try:
+#             datetime.strptime(date_filter, "%Y-%m-%d")
+#             query["AttendanceDate"] = date_filter
+#         except ValueError:
+#             return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+#     if employee_id:
+#         try:
+#             query["EmployeeId"] = int(employee_id)
+#         except ValueError:
+#             return jsonify({"msg": "Employee ID must be an integer."}), 400
+
+#     # 📥 Fetch data
+#     logs = list(logs_col.find(query).sort("AttendanceDate", -1))
+
+#     for log in logs:
+#         log["_id"] = str(log["_id"])
+#         duration = log.get("Duration", 0)
+#         log["DurationHours"] = round(duration / 60.0, 2)
+
+#         # 📘 Apply attendance logic
+#         if duration >= 540:
+#             log["AttendanceStatus"] = "Present"
+#         elif duration >= 240:
+#             log["AttendanceStatus"] = "Half Day Leave"
+#         elif duration > 0:
+#             log["AttendanceStatus"] = "Full Day Leave"
+#         else:
+#             log["AttendanceStatus"] = "Absent"
+
+#     return jsonify(logs), 200
+
 @admin_bp.route("/biometric-logs", methods=["GET"])
 @jwt_required()
 def get_biometric_logs():
@@ -219,19 +269,12 @@ def get_biometric_logs():
     logs = list(logs_col.find(query).sort("AttendanceDate", -1))
 
     for log in logs:
-        log["_id"] = str(log["_id"])
-        duration = log.get("Duration", 0)
-        log["DurationHours"] = round(duration / 60.0, 2)
-
-        # 📘 Apply attendance logic
-        if duration >= 540:
-            log["AttendanceStatus"] = "Present"
-        elif duration >= 240:
-            log["AttendanceStatus"] = "Half Day Leave"
-        elif duration > 0:
-            log["AttendanceStatus"] = "Full Day Leave"
-        else:
-            log["AttendanceStatus"] = "Absent"
+        log["_id"] = str(log["_id"])  # For JSON serialization
+        # 👇 Optional: convert duration to readable hours
+        if "Duration" in log and isinstance(log["Duration"], (int, float)):
+            log["DurationHours"] = round(log["Duration"] / 60.0, 2)
+        # 👇 Already stored: Status (Present, Absent, etc.)
+        # log["Status"] already exists and will be sent as-is
 
     return jsonify(logs), 200
 
