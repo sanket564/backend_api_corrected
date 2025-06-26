@@ -353,34 +353,34 @@ def get_biometric_logs():
 #     return jsonify({"msg": "Employee updated successfully"}), 200
 
 
-@admin_bp.route("/employees/<emp_id>", methods=["PUT"])
-@jwt_required()
-def edit_employee(emp_id):
-    users_col = mongo.db.users
+# @admin_bp.route("/employees/<emp_id>", methods=["PUT"])
+# @jwt_required()
+# def edit_employee(emp_id):
+#     users_col = mongo.db.users
 
-    admin_email = get_jwt_identity()
-    admin = users_col.find_one({"email": admin_email})
-    if not admin or admin.get("role") != "admin":
-        return jsonify({"msg": "Unauthorized"}), 403
+#     admin_email = get_jwt_identity()
+#     admin = users_col.find_one({"email": admin_email})
+#     if not admin or admin.get("role") != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
 
-    if not ObjectId.is_valid(emp_id):
-        return jsonify({"msg": "Invalid employee ID"}), 400
+#     if not ObjectId.is_valid(emp_id):
+#         return jsonify({"msg": "Invalid employee ID"}), 400
 
-    employee = users_col.find_one({"_id": ObjectId(emp_id)})
-    if not employee:
-        return jsonify({"msg": "Employee not found"}), 404
+#     employee = users_col.find_one({"_id": ObjectId(emp_id)})
+#     if not employee:
+#         return jsonify({"msg": "Employee not found"}), 404
 
-    data = request.get_json()
-    update_fields = {}
-    for field in ["name", "email", "department", "position"]:
-        if field in data:
-            update_fields[field] = data[field]
+#     data = request.get_json()
+#     update_fields = {}
+#     for field in ["name", "email", "department", "position"]:
+#         if field in data:
+#             update_fields[field] = data[field]
 
-    if not update_fields:
-        return jsonify({"msg": "No valid fields to update"}), 400
+#     if not update_fields:
+#         return jsonify({"msg": "No valid fields to update"}), 400
 
-    users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update_fields})
-    return jsonify({"msg": "Employee updated successfully"}), 200
+#     users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update_fields})
+#     return jsonify({"msg": "Employee updated successfully"}), 200
 
 @admin_bp.route("/employees/<emp_id>", methods=["DELETE"])
 @jwt_required()
