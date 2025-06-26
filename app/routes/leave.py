@@ -247,38 +247,54 @@ def pending_approvals():
 #         "email": email,
 #         "dynamic_pl_balance": dynamic_balance
 #     }), 200
+# @leave_bp.route("/my-leave-balance", methods=["GET"])
+# @jwt_required()
+# def get_leave_balance():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     leave_requests = mongo.db.leave_requests
+
+#     user = users_col.find_one({"email": email})
+#     if not user:
+#         return jsonify({"msg": "User not found"}), 404
+
+#     join_date = user.get("join_date")
+#     if not join_date:
+#         return jsonify({"msg": "Join date not found"}), 400
+
+#     # 🔢 Count total leave days taken
+#     leaves = leave_requests.find({
+#         "email": email,
+#         "status": {"$in": ["Accepted", "Approved"]},
+#     })
+
+#     total_days = 0
+#     for leave in leaves:
+#         from_date = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
+#         to_date = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
+#         total_days += (to_date - from_date).days + 1
+
+#     # 💡 Compute based on complete policy
+#     result = calculate_dynamic_leave_balance(join_date, total_days)
+#     result["email"] = email
+
+#     return jsonify(result), 200
 @leave_bp.route("/my-leave-balance", methods=["GET"])
 @jwt_required()
 def get_leave_balance():
     email = get_jwt_identity()
-    users_col = mongo.db.users
-    leave_requests = mongo.db.leave_requests
+    leave_balances = mongo.db.leave_balances
 
-    user = users_col.find_one({"email": email})
-    if not user:
-        return jsonify({"msg": "User not found"}), 404
+    balance = leave_balances.find_one({"email": email})
+    if not balance:
+        return jsonify({"msg": "No leave balance set"}), 404
 
-    join_date = user.get("join_date")
-    if not join_date:
-        return jsonify({"msg": "Join date not found"}), 400
-
-    # 🔢 Count total leave days taken
-    leaves = leave_requests.find({
+    return jsonify({
         "email": email,
-        "status": {"$in": ["Accepted", "Approved"]},
-    })
+        "balance": balance.get("balance", 0),
+        "last_updated": balance.get("updated_at")
+    }), 200
 
-    total_days = 0
-    for leave in leaves:
-        from_date = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
-        to_date = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
-        total_days += (to_date - from_date).days + 1
-
-    # 💡 Compute based on complete policy
-    result = calculate_dynamic_leave_balance(join_date, total_days)
-    result["email"] = email
-
-    return jsonify(result), 200
 
 
 
