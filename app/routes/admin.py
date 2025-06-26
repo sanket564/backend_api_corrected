@@ -1289,7 +1289,7 @@ def delete_holiday(holiday_id):
 @jwt_required()
 def list_all_balances():
     users_col = mongo.db.users
-    leave_balances = mongo.db.leave_balances
+    leave_balances = mongo.db.leave_balance
 
     admin_email = get_jwt_identity()
     admin = users_col.find_one({"email": admin_email})
