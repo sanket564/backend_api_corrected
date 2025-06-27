@@ -112,7 +112,14 @@ def request_leave():
         "approval_logs": [],
         "submitted_at": datetime.now()
     })
-
+    
+    if current_approver:
+    create_notification(
+        current_approver,
+        f"{email} has requested leave from {from_date} to {to_date}.",
+        "action"
+    )
+    
     return jsonify({"msg": "Leave request submitted"}), 201
 
 
@@ -213,6 +220,12 @@ def approve_leave(leave_id):
             }
 
     leave_requests.update_one({"_id": ObjectId(leave_id)}, update)
+    create_notification(
+    req["email"],
+    f"Your leave from {req['from_date']} to {req['to_date']} was {action}d by {email}.",
+    "info"
+    )
+
     return jsonify({"msg": f"Leave {action}d successfully"}), 200
 
 @leave_bp.route("/pending-approvals", methods=["GET"])
