@@ -125,6 +125,12 @@ def edit_employee(emp_id):
             upsert=True
         )
 
+    create_notification(
+    target_email,
+    f"Your leave balance has been updated to {new_balance}.",
+    "info"
+    )
+
     if update_fields:
         users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update_fields})
 
@@ -1182,6 +1188,13 @@ def add_employee():
         "reporting_to": reporting_to,
         "proxy_approver": proxy_approver
     })
+
+    create_notification(
+    data["email"],
+    "You have been added to the system. Please log in to view your profile.",
+    "info"
+    )
+
 
     # --- Insert into leave_balances collection ---
     try:
