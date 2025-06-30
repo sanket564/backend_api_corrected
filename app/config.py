@@ -11,6 +11,6 @@ class Config:
     MAIL_SERVER = 'smtp.office365.com'
     MAIL_PORT = 587
     MAIL_USE_TLS = True
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
-    MAIL_DEFAULT_SENDER = os.getenv("MAIL_USERNAME")  # Sender is same as user
+    MAIL_USERNAME = os.getenv("virupaksha.g@otomeyt.ai")
+    MAIL_PASSWORD = os.getenv("qghrtaxhjvlhjtkw")
+    MAIL_DEFAULT_SENDER = os.getenv("virupaksha.g@otomeyt.ai")  # Sender is same as user
