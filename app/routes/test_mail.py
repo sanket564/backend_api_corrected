@@ -9,7 +9,7 @@ def send_test_email():
     try:
         msg = Message(
             subject="✅ Test Email from Attendance System",
-            sender="sanket.b1@outlook.com",  # ✅ Must match MAIL_USERNAME
+            sender="sanket.b@otomeyt.ai",  # ✅ Must match MAIL_USERNAME
             recipients=["biradarsanket83@gmail.com"],
             body="This is a test email sent using Outlook SMTP via Flask-Mail."
         )
