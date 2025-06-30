@@ -13,6 +13,10 @@ def send_test_email():
     recipients=["biradarsanket83@gmail.com"],
     body="This is a test email sent using Outlook SMTP via Flask-Mail."
 )
+        print("Sending email using:") 
+        print("MAIL_SERVER:", mail.state.app.config["MAIL_SERVER"])
+        print("MAIL_PORT:", mail.state.app.config["MAIL_PORT"])
+        print("MAIL_USERNAME:", mail.state.app.config["MAIL_USERNAME"])
 
         mail.send(msg)
         return "✅ Test email sent successfully!"
