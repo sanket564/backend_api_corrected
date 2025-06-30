@@ -18,7 +18,8 @@ def check_admin_exists():
     exists = users_col.find_one({"role": "admin"}) is not None
     return jsonify({"exists": exists})
 
-# @admin_bp.route("/employees/<int:EmployeeId>", methods=["GET"])
+
+# @admin_bp.route("/employees/<int:EmployeeId>", methods=["GET"]
 # @jwt_required()
 # def get_employee_details(EmployeeId):
 #     users_col = mongo.db.users
