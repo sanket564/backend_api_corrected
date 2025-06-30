@@ -114,7 +114,7 @@ def request_leave():
     })
     
     if current_approver:
-    create_notification(
+     create_notification(
         current_approver,
         f"{email} has requested leave from {from_date} to {to_date}.",
         "action"
