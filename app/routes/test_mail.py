@@ -8,10 +8,12 @@ test_mail_bp = Blueprint('test_mail', __name__)
 def send_test_email():
     try:
         msg = Message(
-            subject="✅ Test Email from Attendance System",
-            recipients=["biradarsanket83@gmail.com"],  # 👈 change this to your email
-            body="This is a test email sent using Outlook SMTP via Flask-Mail."
-        )
+    subject="✅ Test Email from Attendance System",
+    sender="virupaksh.g@otomeyt.ai",  # 👈 add this
+    recipients=["biradarsanket83@gmail.com"],
+    body="This is a test email sent using Outlook SMTP via Flask-Mail."
+)
+
         mail.send(msg)
         return "✅ Test email sent successfully!"
     except Exception as e:
