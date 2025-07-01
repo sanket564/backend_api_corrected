@@ -1413,7 +1413,7 @@ Login URL: https://attendance-frontend-woad.vercel.app
 Login Email ID: {employee_email}
 Login Password: {plain_password}
 
-Please log in using the above details. After your first login, we recommend that you change your password to ensure account security.
+Please log in using the above details.
 
 Key Features of the Portal:
 - View and track your daily attendance
@@ -1429,6 +1429,7 @@ We wish you a successful and rewarding journey with us.
 
 Warm regards,  
 HR Team
+Otomeyt AI
 """
 
     send_notification_email(
