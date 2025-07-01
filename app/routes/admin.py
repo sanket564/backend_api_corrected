@@ -1278,6 +1278,85 @@ def total_employees():
 
 from app.utils.notifier import send_notification_email  # ✅ make sure this is imported
 
+# @admin_bp.route("/add-employee", methods=["POST"])
+# @jwt_required()
+# def add_employee():
+#     users_col = mongo.db.users
+#     leave_balances_col = mongo.db.leave_balances
+#     data = request.get_json()
+
+#     reporting_to = data.get("reporting_to", [])
+#     proxy_approver = data.get("proxy_approver", None)
+#     role = data.get("role", "employee")
+
+#     required = ("name", "email", "password", "join_date", "emp_code")
+#     if not all(k in data for k in required):
+#         return jsonify({"msg": "Missing required fields"}), 400
+
+#     if users_col.find_one({"email": data["email"]}):
+#         return jsonify({"msg": "Email already exists"}), 409
+
+#     if users_col.find_one({"emp_code": data["emp_code"]}):
+#         return jsonify({"msg": "Employee code already exists"}), 409
+
+#     # 📌 Plain password before hashing
+#     plain_password = data["password"]
+#     hashed_password = generate_password_hash(plain_password)
+
+#     users_col.insert_one({
+#         "name": data["name"],
+#         "email": data["email"],
+#         "password": hashed_password,
+#         "role": role,
+#         "join_date": data["join_date"],
+#         "emp_code": data["emp_code"],
+#         "department": data.get("department", "Not Assigned"),
+#         "position": data.get("position", "Not Assigned"),
+#         "bloodGroup": data.get("bloodGroup", "Not Provided"),
+#         "reporting_to": reporting_to,
+#         "proxy_approver": proxy_approver
+#     })
+
+#     # 🎯 Send welcome email to employee
+#     employee_name = data["name"]
+#     employee_email = data["email"]
+
+#     email_body = f"""Hi {employee_name},
+
+# Kindly use the below URL to access the Attendance and Leave Management System using the provided credentials.
+
+# 🔗 URL: https://attendance-frontend-woad.vercel.app  
+# 📧 Email ID: {employee_email}  
+# 🔐 Password: {plain_password}
+
+# Thanks,  
+# HR Team
+# """
+
+#     send_notification_email(
+#         email=employee_email,
+#         subject="🎉 Welcome to the Attendance Management System",
+#         body=email_body,
+#         notif_type="info"
+#     )
+
+#     # 🎯 Set initial leave balance
+#     try:
+#         join_date = datetime.strptime(data["join_date"], "%Y-%m-%d")
+#         probation_end = join_date + relativedelta(months=3)
+#     except Exception as e:
+#         return jsonify({"msg": f"Invalid join_date format. Expected YYYY-MM-DD. Error: {str(e)}"}), 400
+
+#     leave_balances_col.insert_one({
+#         "email": employee_email,
+#         "join_date": join_date,
+#         "probation_end": probation_end,
+#         "pl_balance": 0,
+#         "last_updated": datetime.now()
+#     })
+
+#     return jsonify({"msg": f"{role.capitalize()} added successfully"}), 201
+
 @admin_bp.route("/add-employee", methods=["POST"])
 @jwt_required()
 def add_employee():
@@ -1299,7 +1378,6 @@ def add_employee():
     if users_col.find_one({"emp_code": data["emp_code"]}):
         return jsonify({"msg": "Employee code already exists"}), 409
 
-    # 📌 Plain password before hashing
     plain_password = data["password"]
     hashed_password = generate_password_hash(plain_password)
 
@@ -1317,30 +1395,50 @@ def add_employee():
         "proxy_approver": proxy_approver
     })
 
-    # 🎯 Send welcome email to employee
+    # ✅ Send long welcome email
     employee_name = data["name"]
     employee_email = data["email"]
 
     email_body = f"""Hi {employee_name},
 
-Kindly use the below URL to access the Attendance and Leave Management System using the provided credentials.
+Welcome to the team!
 
-🔗 URL: https://attendance-frontend-woad.vercel.app  
-📧 Email ID: {employee_email}  
-🔐 Password: {plain_password}
+We are excited to have you on board and look forward to your contributions. To help you get started smoothly, we have created your account on our Attendance and Leave Management System.
 
-Thanks,  
+This platform is designed to manage your daily attendance, leave applications, approvals, and view your leave balance — all in one place.
+
+You can access the system using the credentials provided below:
+
+🔗 Login URL: https://attendance-frontend-woad.vercel.app
+📧 Registered Email ID: {employee_email}
+🔐 Temporary Password: {plain_password}
+
+Please log in using the above details. After your first login, we recommend that you change your password to ensure account security.
+
+Key Features of the Portal:
+- View and track your daily attendance
+- Submit leave requests online
+- Get real-time notifications on approval/rejection
+- Access your leave history and balance
+- Stay informed with in-app alerts and email notifications
+
+If you face any issues while accessing the portal or have any questions, feel free to reach out to the HR team at hr@yourcompany.com or contact your reporting manager.
+
+Once again, welcome aboard!
+We wish you a successful and rewarding journey with us.
+
+Warm regards,  
 HR Team
 """
 
     send_notification_email(
         email=employee_email,
-        subject="🎉 Welcome to the Attendance Management System",
+        subject="🎉 Welcome to the Attendance & Leave Management System",
         body=email_body,
         notif_type="info"
     )
 
-    # 🎯 Set initial leave balance
+    # ✅ Set leave balance
     try:
         join_date = datetime.strptime(data["join_date"], "%Y-%m-%d")
         probation_end = join_date + relativedelta(months=3)
@@ -1356,6 +1454,7 @@ HR Team
     })
 
     return jsonify({"msg": f"{role.capitalize()} added successfully"}), 201
+
 
 
 
