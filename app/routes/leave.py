@@ -5,6 +5,7 @@ from app.extensions import mongo
 from bson import ObjectId
 from app.utils.leave_utils import calculate_dynamic_leave_balance
 from app.utils.notification_utils import create_notification
+from app.utils.notifier import send_notification_email
 
 
 leave_bp = Blueprint("leave", __name__)
@@ -34,14 +35,14 @@ leave_bp = Blueprint("leave", __name__)
 #         "submitted_at": datetime.now()
 #     })
 
-#     return jsonify({"msg": "Leave request submitted"}), 201
+#     return jsonify({"msg": "Leave  submitted"}), 201
 
-# @leave_bp.route("/request", methods=["POST"])
+# @leave_bp.route("/", methods=["POST"])
 # @jwt_required()
-# def request_leave():
+# def _leave():
 #     email = get_jwt_identity()
-#     leave_requests = mongo.db.leave_requests
-#     data = request.get_json()
+#     leave_s = mongo.db.leave_s
+#     data = .get_json()
 
 #     from_date = data.get("from_date")
 #     to_date = data.get("to_date")
@@ -51,16 +52,16 @@ leave_bp = Blueprint("leave", __name__)
 #         return jsonify({"msg": "From date, to date, and reason are required"}), 400
 
 #     # Check for overlapping leave
-#     existing = leave_requests.find_one({
+#     existing = leave_s.find_one({
 #         "email": email,
 #         "$or": [
 #             {"from_date": {"$lte": to_date}, "to_date": {"$gte": from_date}}
 #         ]
 #     })
 #     if existing:
-#         return jsonify({"msg": "Leave request already exists for this range"}), 409
+#         return jsonify({"msg": "Leave  already exists for this range"}), 409
 
-#     leave_requests.insert_one({
+#     leave_s.insert_one({
 #         "email": email,
 #         "reason": reason,
 #         "from_date": from_date,
@@ -69,14 +70,14 @@ leave_bp = Blueprint("leave", __name__)
 #         "submitted_at": datetime.now()
 #     })
 
-#     return jsonify({"msg": "Leave request submitted"}), 201
-@leave_bp.route("/request", methods=["POST"])
+#     return jsonify({"msg": "Leave  submitted"}), 201
+@leave_bp.route("/", methods=["POST"])
 @jwt_required()
-def request_leave():
+def _leave():
     email = get_jwt_identity()
     users_col = mongo.db.users
-    leave_requests = mongo.db.leave_requests
-    data = request.get_json()
+    leave_s = mongo.db.leave_s
+    data = .get_json()
 
     from_date = data.get("from_date")
     to_date = data.get("to_date")
@@ -86,7 +87,7 @@ def request_leave():
         return jsonify({"msg": "From date, to date, and reason are required"}), 400
 
     # Prevent overlap
-    existing = leave_requests.find_one({
+    existing = leave_s.find_one({
         "email": email,
         "$or": [
             {"from_date": {"$lte": to_date}, "to_date": {"$gte": from_date}}
