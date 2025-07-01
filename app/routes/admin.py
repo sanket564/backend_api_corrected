@@ -1409,9 +1409,9 @@ This platform is designed to manage your daily attendance, leave applications, a
 
 You can access the system using the credentials provided below:
 
-🔗 Login URL: https://attendance-frontend-woad.vercel.app
-📧 Registered Email ID: {employee_email}
-🔐 Temporary Password: {plain_password}
+Login URL: https://attendance-frontend-woad.vercel.app
+Login Email ID: {employee_email}
+Login Password: {plain_password}
 
 Please log in using the above details. After your first login, we recommend that you change your password to ensure account security.
 
@@ -1422,7 +1422,7 @@ Key Features of the Portal:
 - Access your leave history and balance
 - Stay informed with in-app alerts and email notifications
 
-If you face any issues while accessing the portal or have any questions, feel free to reach out to the HR team at hr@yourcompany.com or contact your reporting manager.
+If you face any issues while accessing the portal or have any questions, feel free to reach out to the HR team at sanket.b@otomeyt.ai or contact your reporting manager.
 
 Once again, welcome aboard!
 We wish you a successful and rewarding journey with us.
@@ -1433,7 +1433,7 @@ HR Team
 
     send_notification_email(
         email=employee_email,
-        subject="🎉 Welcome to the Attendance & Leave Management System",
+        subject="🎉 Welcome to the Oto-Attendance",
         body=email_body,
         notif_type="info"
     )
