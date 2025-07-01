@@ -71,13 +71,64 @@ leave_bp = Blueprint("leave", __name__)
 #     })
 
 #     return jsonify({"msg": "Leave  submitted"}), 201
-@leave_bp.route("/", methods=["POST"])
+# @leave_bp.route("/", methods=["POST"])
+# @jwt_required()
+# def _leave():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     leave_s = mongo.db.leave_s
+#     data = .get_json()
+
+#     from_date = data.get("from_date")
+#     to_date = data.get("to_date")
+#     reason = data.get("reason")
+
+#     if not from_date or not to_date or not reason:
+#         return jsonify({"msg": "From date, to date, and reason are required"}), 400
+
+#     # Prevent overlap
+#     existing = leave_s.find_one({
+#         "email": email,
+#         "$or": [
+#             {"from_date": {"$lte": to_date}, "to_date": {"$gte": from_date}}
+#         ]
+#     })
+#     if existing:
+#         return jsonify({"msg": "Leave request already exists for this range"}), 409
+
+#     # Pull approvers from user profile
+#     user = users_col.find_one({"email": email})
+#     approver_chain = user.get("reporting_to", [])
+#     current_approver = approver_chain[0] if approver_chain else None
+
+#     leave_requests.insert_one({
+#         "email": email,
+#         "from_date": from_date,
+#         "to_date": to_date,
+#         "reason": reason,
+#         "status": "Pending",
+#         "approver_chain": approver_chain,
+#         "current_approver": current_approver,
+#         "approval_logs": [],
+#         "submitted_at": datetime.now()
+#     })
+    
+#     if current_approver:
+#      create_notification(
+#         current_approver,
+#         f"{email} has requested leave from {from_date} to {to_date}.",
+#         "action"
+#     )
+    
+#     return jsonify({"msg": "Leave request submitted"}), 201
+
+@leave_bp.route("/request", methods=["POST"])
 @jwt_required()
-def _leave():
+def request_leave():
     email = get_jwt_identity()
     users_col = mongo.db.users
-    leave_s = mongo.db.leave_s
-    data = .get_json()
+    leave_requests = mongo.db.leave_requests
+    data = request.get_json()
 
     from_date = data.get("from_date")
     to_date = data.get("to_date")
@@ -87,7 +138,7 @@ def _leave():
         return jsonify({"msg": "From date, to date, and reason are required"}), 400
 
     # Prevent overlap
-    existing = leave_s.find_one({
+    existing = leave_requests.find_one({
         "email": email,
         "$or": [
             {"from_date": {"$lte": to_date}, "to_date": {"$gte": from_date}}
@@ -96,7 +147,6 @@ def _leave():
     if existing:
         return jsonify({"msg": "Leave request already exists for this range"}), 409
 
-    # Pull approvers from user profile
     user = users_col.find_one({"email": email})
     approver_chain = user.get("reporting_to", [])
     current_approver = approver_chain[0] if approver_chain else None
@@ -112,15 +162,22 @@ def _leave():
         "approval_logs": [],
         "submitted_at": datetime.now()
     })
-    
+
     if current_approver:
-     create_notification(
-        current_approver,
-        f"{email} has requested leave from {from_date} to {to_date}.",
-        "action"
-    )
-    
+        create_notification(
+            current_approver,
+            f"{email} has requested leave from {from_date} to {to_date}.",
+            "action"
+        )
+        send_notification_email(
+            email=current_approver,
+            subject="📝 New Leave Request",
+            body=f"{email} has requested leave from {from_date} to {to_date}. Please review in the portal.",
+            notif_type="action"
+        )
+
     return jsonify({"msg": "Leave request submitted"}), 201
+
 
 
 
