@@ -10,6 +10,7 @@ import dateutil.parser
 from dateutil.relativedelta import relativedelta
 from app.extensions import mongo
 from app.utils.notification_utils import create_notification
+from app.utils.notifier import send_notification_email
 
 admin_bp = Blueprint("admin", __name__)
 
