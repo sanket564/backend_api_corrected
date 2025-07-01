@@ -89,11 +89,61 @@ def recalculate_leaves():
     update_leave_balance()
     return jsonify({"msg": "Leave balances updated successfully."}), 200
 
+# @admin_bp.route("/employees/<emp_id>", methods=["PUT"])
+# @jwt_required()
+# def edit_employee(emp_id):
+#     users_col = mongo.db.users
+#     leave_balance = mongo.db.leave_balance
+
+#     admin_email = get_jwt_identity()
+#     admin = users_col.find_one({"email": admin_email})
+#     if not admin or admin.get("role") != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     if not ObjectId.is_valid(emp_id):
+#         return jsonify({"msg": "Invalid employee ID"}), 400
+
+#     employee = users_col.find_one({"_id": ObjectId(emp_id)})
+#     if not employee:
+#         return jsonify({"msg": "Employee not found"}), 404
+
+#     data = request.get_json()
+#     update_fields = {}
+#     for field in ["name", "email", "department", "position"]:
+#         if field in data:
+#             update_fields[field] = data[field]
+
+#     # ✅ Handle leave balance update
+#     if "leave_balance" in data:
+#         leave_balance.update_one(
+#             {"email": employee["email"]},
+#             {
+#                 "$set": {
+#                     "balance": data["leave_balance"],
+#                     "updated_by": admin_email,
+#                     "updated_at": datetime.utcnow()
+#                 }
+#             },
+#             upsert=True
+#         )
+
+#     create_notification(
+#     target_email,
+#     f"Your leave balance has been updated to {new_balance}.",
+#     "info"
+#     )
+
+#     if update_fields:
+#         users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update_fields})
+
+#     return jsonify({"msg": "Employee updated successfully"}), 200
+
+
 @admin_bp.route("/employees/<emp_id>", methods=["PUT"])
 @jwt_required()
 def edit_employee(emp_id):
     users_col = mongo.db.users
-    leave_balance = mongo.db.leave_balance
+    leave_balance = mongo.db.leave_balances  # fixed collection name
 
     admin_email = get_jwt_identity()
     admin = users_col.find_one({"email": admin_email})
@@ -115,11 +165,12 @@ def edit_employee(emp_id):
 
     # ✅ Handle leave balance update
     if "leave_balance" in data:
+        new_balance = data["leave_balance"]
         leave_balance.update_one(
             {"email": employee["email"]},
             {
                 "$set": {
-                    "balance": data["leave_balance"],
+                    "balance": new_balance,
                     "updated_by": admin_email,
                     "updated_at": datetime.utcnow()
                 }
@@ -127,16 +178,24 @@ def edit_employee(emp_id):
             upsert=True
         )
 
-    create_notification(
-    target_email,
-    f"Your leave balance has been updated to {new_balance}.",
-    "info"
-    )
+        # ✅ Notify employee
+        create_notification(
+            employee["email"],
+            f"Your leave balance has been updated to {new_balance}.",
+            "info"
+        )
+        send_notification_email(
+            email=employee["email"],
+            subject="📊 Leave Balance Updated",
+            body=f"Hi {employee['name']},\n\nYour leave balance has been updated to {new_balance} by Admin.\n\nThanks,\nHR Team",
+            notif_type="info"
+        )
 
     if update_fields:
         users_col.update_one({"_id": ObjectId(emp_id)}, {"$set": update_fields})
 
     return jsonify({"msg": "Employee updated successfully"}), 200
+
 
 
 
