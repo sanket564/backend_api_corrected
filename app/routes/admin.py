@@ -1108,12 +1108,12 @@ def upload_attendance():
 
     return jsonify({"msg": "Attendance uploaded and processed successfully"}), 200
 
-@admin_bp.route("/total-employees", methods=["GET"])
-@jwt_required()
-def total_employees():
-    users_col = mongo.db.users
-    count = users_col.count_documents({})
-    return jsonify({"total_employees": count}), 200
+# @admin_bp.route("/total-employees", methods=["GET"])
+# @jwt_required()
+# def total_employees():
+#     users_col = mongo.db.users
+#     count = users_col.count_documents({})
+#     return jsonify({"total_employees": count}), 200
 
 # @admin_bp.route("/add-employee", methods=["POST"])
 # @jwt_required()
