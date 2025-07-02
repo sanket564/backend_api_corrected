@@ -1,9 +1,8 @@
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token,jwt_required, get_jwt_identity,create_refresh_token
 from datetime import timedelta
 import re
-
 from app.extensions import mongo
 from app.utils.validators import is_valid_email
 
@@ -38,29 +37,64 @@ def signup():
     })
     return jsonify({"msg": "Signup successful"}), 201
 
-@auth_bp.route("/login", methods=["POST","OPTIONS"])
+# @auth_bp.route("/login", methods=["POST","OPTIONS"])
+# def login():
+#     if request.method == "OPTIONS":
+#         return jsonify({}), 200
+#     # Respond to CORS preflight request
+#     data = request.get_json()
+#     users_col = mongo.db.users  # moved inside function
+ 
+#     email = data.get("email", "").strip()
+#     password = data.get("password", "")
+
+#     user = users_col.find_one({"email": email})
+#     print("🔍 Email received:", email)
+#     print("📦 Found user in DB:", user)
+#     if not user or not check_password_hash(user["password"], password):
+#         return jsonify({"msg": "Invalid credentials"}), 401
+
+#     token = create_access_token(
+#         identity=email,
+#         additional_claims={"role": user["role"]},
+#         expires_delta=timedelta(hours=8)
+#     )
+#     return jsonify({"token": token, "role": user["role"], "name": user["name"]}), 200
+
+@auth_bp.route("/login", methods=["POST", "OPTIONS"])
 def login():
     if request.method == "OPTIONS":
         return jsonify({}), 200
-    # Respond to CORS preflight request
+
     data = request.get_json()
-    users_col = mongo.db.users  # moved inside function
- 
+    users_col = mongo.db.users
+
     email = data.get("email", "").strip()
     password = data.get("password", "")
 
     user = users_col.find_one({"email": email})
     print("🔍 Email received:", email)
     print("📦 Found user in DB:", user)
+
     if not user or not check_password_hash(user["password"], password):
         return jsonify({"msg": "Invalid credentials"}), 401
 
-    token = create_access_token(
+    # ✅ Access token (short-lived)
+    access_token = create_access_token(
         identity=email,
         additional_claims={"role": user["role"]},
-        expires_delta=timedelta(hours=8)
+        expires_delta=timedelta(minutes=15)  # You can adjust this if needed
     )
-    return jsonify({"token": token, "role": user["role"], "name": user["name"]}), 200
+
+    # ✅ Refresh token (long-lived)
+    refresh_token = create_refresh_token(identity=email)
+
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "role": user["role"],
+        "name": user["name"]
+    }), 200
 
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
@@ -82,3 +116,10 @@ def forgot_password():
     users_col.update_one({'email': email}, {'$set': {'password': hashed_password}})
 
     return jsonify({"msg": "Password reset successful"}), 200
+
+@auth_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    current_user = get_jwt_identity()
+    new_access_token = create_access_token(identity=current_user)
+    return jsonify(access_token=new_access_token), 200
