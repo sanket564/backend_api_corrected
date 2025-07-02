@@ -347,6 +347,48 @@ def get_all_employees():
 
 #     return jsonify(logs), 200
 
+# @admin_bp.route("/biometric-logs", methods=["GET"])
+# @jwt_required()
+# def get_biometric_logs():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.biometric_logs
+
+#     # 🔐 Admin auth check
+#     user = users_col.find_one({"email": email})
+#     if not user or user.get("role") != "admin":
+#         return jsonify({"msg": "Unauthorized"}), 403
+
+#     # 🔍 Optional filters
+#     query = {}
+#     date_filter = request.args.get("date")
+#     employee_id = request.args.get("employee_id")
+
+#     if date_filter:
+#         try:
+#             datetime.strptime(date_filter, "%Y-%m-%d")
+#             query["AttendanceDate"] = date_filter
+#         except ValueError:
+#             return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+#     if employee_id:
+#         try:
+#             query["EmployeeId"] = int(employee_id)
+#         except ValueError:
+#             return jsonify({"msg": "Employee ID must be an integer."}), 400
+
+#     # 📥 Fetch data
+#     logs = list(logs_col.find(query).sort("AttendanceDate", -1))
+
+#     for log in logs:
+#         log["_id"] = str(log["_id"])  # For JSON serialization
+#         # 👇 Optional: convert duration to readable hours
+#         if "Duration" in log and isinstance(log["Duration"], (int, float)):
+#             log["DurationHours"] = round(log["Duration"] / 60.0, 2)
+#         # 👇 Already stored: Status (Present, Absent, etc.)
+#         # log["Status"] already exists and will be sent as-is
+
+#     return jsonify(logs), 200
 @admin_bp.route("/biometric-logs", methods=["GET"])
 @jwt_required()
 def get_biometric_logs():
@@ -381,12 +423,23 @@ def get_biometric_logs():
     logs = list(logs_col.find(query).sort("AttendanceDate", -1))
 
     for log in logs:
-        log["_id"] = str(log["_id"])  # For JSON serialization
-        # 👇 Optional: convert duration to readable hours
+        log["_id"] = str(log["_id"])
+
+        # ✅ Format AttendanceDate
+        if "AttendanceDate" in log:
+            try:
+                if isinstance(log["AttendanceDate"], str):
+                    log["AttendanceDate"] = datetime.strptime(
+                        log["AttendanceDate"][:10], "%Y-%m-%d"
+                    ).strftime("%Y-%m-%d")
+                elif isinstance(log["AttendanceDate"], datetime):
+                    log["AttendanceDate"] = log["AttendanceDate"].strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+        # ✅ Convert duration to readable hours
         if "Duration" in log and isinstance(log["Duration"], (int, float)):
             log["DurationHours"] = round(log["Duration"] / 60.0, 2)
-        # 👇 Already stored: Status (Present, Absent, etc.)
-        # log["Status"] already exists and will be sent as-is
 
     return jsonify(logs), 200
 
