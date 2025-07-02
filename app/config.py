@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from datetime import timedelta
+# from datetime import timedelta
 
 load_dotenv()
 
@@ -12,7 +12,7 @@ class Config:
     MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://virupaksh:Virupaksh%401234@cluster0.goirrab.mongodb.net/attendance_db?retryWrites=true&w=majority&appName=Cluster0")
     # ✅ Outlook SMTP Email Config
     MAIL_SERVER = 'smtp.gmail.com'
-    MAIL_PORT = 587
+    MAIL_PORT = 587 
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
