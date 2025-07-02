@@ -406,12 +406,21 @@ def get_biometric_logs():
     date_filter = request.args.get("date")
     employee_id = request.args.get("employee_id")
 
+    # if date_filter:
+    #     try:
+    #         datetime.strptime(date_filter, "%Y-%m-%d")
+    #         query["AttendanceDate"] = date_filter
+    #     except ValueError:
+    #         return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
     if date_filter:
-        try:
-            datetime.strptime(date_filter, "%Y-%m-%d")
-            query["AttendanceDate"] = date_filter
-        except ValueError:
-            return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
+       try:
+        # Convert "2025-06-26" to "Thu, 26 Jun 2025 00:00:00 GMT"
+        date_obj = datetime.strptime(date_filter, "%Y-%m-%d")
+        formatted_date = date_obj.strftime("%a, %d %b %Y 00:00:00 GMT")
+        query["AttendanceDate"] = formatted_date
+       except ValueError:
+        return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
+
 
     if employee_id:
         try:
