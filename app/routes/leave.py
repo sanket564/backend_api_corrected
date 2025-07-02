@@ -122,6 +122,61 @@ leave_bp = Blueprint("leave", __name__)
     
 #     return jsonify({"msg": "Leave request submitted"}), 201
 
+# @leave_bp.route("/request", methods=["POST"])
+# @jwt_required()
+# def request_leave():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     leave_requests = mongo.db.leave_requests
+#     data = request.get_json()
+
+#     from_date = data.get("from_date")
+#     to_date = data.get("to_date")
+#     reason = data.get("reason")
+
+#     if not from_date or not to_date or not reason:
+#         return jsonify({"msg": "From date, to date, and reason are required"}), 400
+
+#     # Prevent overlap
+#     existing = leave_requests.find_one({
+#         "email": email,
+#         "$or": [
+#             {"from_date": {"$lte": to_date}, "to_date": {"$gte": from_date}}
+#         ]
+#     })
+#     if existing:
+#         return jsonify({"msg": "Leave request already exists for this range"}), 409
+
+#     user = users_col.find_one({"email": email})
+#     approver_chain = user.get("reporting_to", [])
+#     current_approver = approver_chain[0] if approver_chain else None
+
+#     leave_requests.insert_one({
+#         "email": email,
+#         "from_date": from_date,
+#         "to_date": to_date,
+#         "reason": reason,
+#         "status": "Pending",
+#         "approver_chain": approver_chain,
+#         "current_approver": current_approver,
+#         "approval_logs": [],
+#         "submitted_at": datetime.now()
+#     })
+
+#     if current_approver:
+#         create_notification(
+#             current_approver,
+#             f"{email} has requested leave from {from_date} to {to_date}.",
+#             "action"
+#         )
+#         send_notification_email(
+#             email=current_approver,
+#             subject="📝 New Leave Request",
+#             body=f"{email} has requested leave from {from_date} to {to_date}. Please review in the portal.",
+#             notif_type="action"
+#         )
+
+#     return jsonify({"msg": "Leave request submitted"}), 201
 @leave_bp.route("/request", methods=["POST"])
 @jwt_required()
 def request_leave():
@@ -137,7 +192,17 @@ def request_leave():
     if not from_date or not to_date or not reason:
         return jsonify({"msg": "From date, to date, and reason are required"}), 400
 
-    # Prevent overlap
+    # ✅ Calculate requested leave days
+    try:
+        start = datetime.strptime(from_date, "%Y-%m-%d").date()
+        end = datetime.strptime(to_date, "%Y-%m-%d").date()
+        requested_days = (end - start).days + 1
+        if requested_days <= 0:
+            return jsonify({"msg": "Invalid date range"}), 400
+    except Exception:
+        return jsonify({"msg": "Invalid date format"}), 400
+
+    # ✅ Prevent overlap
     existing = leave_requests.find_one({
         "email": email,
         "$or": [
@@ -147,10 +212,50 @@ def request_leave():
     if existing:
         return jsonify({"msg": "Leave request already exists for this range"}), 409
 
+    # ✅ Fetch DOJ and compute total allocated
     user = users_col.find_one({"email": email})
     approver_chain = user.get("reporting_to", [])
     current_approver = approver_chain[0] if approver_chain else None
 
+    try:
+        doj = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d").date()
+    except:
+        return jsonify({"msg": "Invalid DOJ"}), 400
+
+    today = datetime.today().date()
+    months_since_join = (today.year - doj.year) * 12 + today.month - doj.month
+
+    if months_since_join < 3:
+        total_allocated = months_since_join * 1
+    elif months_since_join < 12:
+        quarters_completed = (months_since_join - 3) // 3 + 1
+        total_allocated = 3 + quarters_completed * 5
+    else:
+        total_allocated = 20
+
+    # ✅ Count already taken leave
+    past_leaves = leave_requests.find({
+        "email": email,
+        "status": {"$in": ["Accepted", "Approved"]}
+    })
+
+    taken_days = 0
+    for leave in past_leaves:
+        try:
+            f = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
+            t = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
+            taken_days += (t - f).days + 1
+        except:
+            continue
+
+    leaves_left = max(total_allocated - taken_days, 0)
+
+    if requested_days > leaves_left:
+        return jsonify({
+            "msg": f"Insufficient leave balance. You have {leaves_left} PLs left, but requested {requested_days}."
+        }), 400
+
+    # ✅ Insert the leave request
     leave_requests.insert_one({
         "email": email,
         "from_date": from_date,
@@ -177,6 +282,7 @@ def request_leave():
         )
 
     return jsonify({"msg": "Leave request submitted"}), 201
+
 
 
 
