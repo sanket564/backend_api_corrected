@@ -87,37 +87,83 @@ def get_week_range(date):
     return start, end
 
 
+# @admin_bp.route("/biometric/weekly-underworked", methods=["GET"])
+# @jwt_required()
+# def get_weekly_underworked_employees():
+#     attendance_col = mongo.db.biometric_logs  # or your attendance collection
+
+#     today = datetime.utcnow()
+#     start_of_week, end_of_week = get_week_range(today)
+
+#     # Convert to ISO format
+#     start_iso = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+#     end_iso = end_of_week.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+#     # Fetch attendance within the week
+#     records = attendance_col.find({
+#         "AttendanceDate": {
+#             "$gte": start_iso,
+#             "$lte": end_iso
+#         },
+#         "Status": "Present"
+#     })
+
+#     employee_minutes = defaultdict(int)
+
+#     for rec in records:
+#         emp_id = rec.get("EmployeeId")
+#         duration = rec.get("Duration", 0)
+#         employee_minutes[emp_id] += duration
+
+#     result = []
+#     for emp_id, total_minutes in employee_minutes.items():
+#         if total_minutes < 2700:  # Less than 45 hours
+#             result.append({
+#                 "EmployeeId": emp_id,
+#                 "TotalHours": round(total_minutes / 60, 2)
+#             })
+
+#     return jsonify(result), 200
 @admin_bp.route("/biometric/weekly-underworked", methods=["GET"])
 @jwt_required()
 def get_weekly_underworked_employees():
-    attendance_col = mongo.db.biometric_logs  # or your attendance collection
+    attendance_col = mongo.db.biometric_logs
 
-    today = datetime.utcnow()
-    start_of_week, end_of_week = get_week_range(today)
+    # 📥 Get date parameters from query
+    from_date_str = request.args.get("from_date")
+    to_date_str = request.args.get("to_date")
 
-    # Convert to ISO format
-    start_iso = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_iso = end_of_week.replace(hour=23, minute=59, second=59, microsecond=999999)
+    # 🧪 Validate dates
+    try:
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+    except Exception:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
 
-    # Fetch attendance within the week
+    # 🛠 Add time boundaries to cover full days
+    from_date = from_date.replace(hour=0, minute=0, second=0)
+    to_date = to_date.replace(hour=23, minute=59, second=59)
+
+    # 📤 Query attendance logs in date range
     records = attendance_col.find({
         "AttendanceDate": {
-            "$gte": start_iso,
-            "$lte": end_iso
+            "$gte": from_date,
+            "$lte": to_date
         },
         "Status": "Present"
     })
 
+    # 📊 Calculate total duration per employee
     employee_minutes = defaultdict(int)
-
     for rec in records:
         emp_id = rec.get("EmployeeId")
         duration = rec.get("Duration", 0)
         employee_minutes[emp_id] += duration
 
+    # 🎯 Filter underworked employees
     result = []
     for emp_id, total_minutes in employee_minutes.items():
-        if total_minutes < 2700:  # Less than 45 hours
+        if total_minutes < 2700:
             result.append({
                 "EmployeeId": emp_id,
                 "TotalHours": round(total_minutes / 60, 2)
