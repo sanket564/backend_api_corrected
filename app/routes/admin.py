@@ -13,6 +13,10 @@ from app.utils.notification_utils import create_notification
 from app.utils.notifier import send_notification_email
 from datetime import datetime, timedelta
 from collections import defaultdict
+import csv
+from io import StringIO
+from flask import Response
+from collections import defaultdict
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -21,6 +25,64 @@ def check_admin_exists():
     users_col = mongo.db.users
     exists = users_col.find_one({"role": "admin"}) is not None
     return jsonify({"exists": exists})
+
+
+@admin_bp.route("/biometric/weekly-underworked-report", methods=["GET"])
+@jwt_required()
+def download_underworked_employees_csv():
+    attendance_col = mongo.db.biometric_logs
+
+    from_date_str = request.args.get("from_date")
+    to_date_str = request.args.get("to_date")
+
+    try:
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+    except Exception:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    from_date = from_date.replace(hour=0, minute=0, second=0)
+    to_date = to_date.replace(hour=23, minute=59, second=59)
+
+    records = attendance_col.find({
+        "AttendanceDate": {
+            "$gte": from_date,
+            "$lte": to_date
+        },
+        "Status": "Present"
+    })
+
+    employee_minutes = defaultdict(int)
+    for rec in records:
+        emp_id = rec.get("EmployeeId")
+        duration = rec.get("Duration", 0)
+        employee_minutes[emp_id] += duration
+
+    underworked = []
+    for emp_id, total_minutes in employee_minutes.items():
+        if total_minutes < 2700:
+            underworked.append({
+                "EmployeeId": emp_id,
+                "TotalHours": round(total_minutes / 60, 2)
+            })
+
+    # Generate CSV using StringIO
+    si = StringIO()
+    writer = csv.DictWriter(si, fieldnames=["EmployeeId", "TotalHours"])
+    writer.writeheader()
+    writer.writerows(underworked)
+
+    output = si.getvalue()
+    filename = f"underworked_report_{from_date_str}_to_{to_date_str}.csv"
+
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
 
 
 # @admin_bp.route("/employees/<int:EmployeeId>", methods=["GET"]
