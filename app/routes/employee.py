@@ -209,6 +209,76 @@ def employee_profile():
 #         "totalAllocated": total_allocated
 #     }), 200
 
+# @employee_bp.route("/summary", methods=["GET"])
+# @jwt_required()
+# def employee_summary():
+#     identity = get_jwt_identity()
+#     email = identity["email"] if isinstance(identity, dict) else identity
+#     users_col = mongo.db.users
+#     leave_col = mongo.db.leave_requests
+
+#     # Fetch user
+#     user = users_col.find_one({"email": email})
+#     if not user:
+#         return jsonify({"msg": "User not found"}), 404
+
+#     try:
+#         join_date = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d").date()
+#     except Exception:
+#         return jsonify({"msg": "Invalid join date format"}), 400
+
+#     today = datetime.today().date()
+#     total_allocated = 0
+
+#     months_since_join = (today.year - join_date.year) * 12 + today.month - join_date.month
+
+#     if months_since_join < 3:
+#         # 🚦 Still in probation
+#         total_allocated = months_since_join * 1
+#     elif months_since_join < 12:
+#         # 🌓 Post-probation, quarterly accrual
+#         quarters_completed = (months_since_join - 3) // 3 + 1
+#         total_allocated = quarters_completed * 5
+#     else:
+#         # 📅 After 1 year, 20 PLs for the calendar year
+#         total_allocated = 20
+
+#     # Fetch accepted + pending leaves
+#     leave_logs = list(leave_col.find({"email": email}))
+
+#     pending_days = 0
+#     accepted_days = 0
+
+#     for leave in leave_logs:
+#         from_date = leave.get("from_date")
+#         to_date = leave.get("to_date")
+#         status = leave.get("status")
+
+#         if from_date and to_date:
+#             try:
+#                 start = datetime.strptime(from_date, "%Y-%m-%d").date()
+#                 end = datetime.strptime(to_date, "%Y-%m-%d").date()
+#                 num_days = (end - start).days + 1
+#             except Exception:
+#                 num_days = 0
+#         else:
+#             num_days = 0
+
+#         if status == "Pending":
+#             pending_days += num_days
+#         elif status == "Accepted":
+#             accepted_days += num_days
+
+#     leaves_taken = accepted_days
+#     leaves_left = max(total_allocated - leaves_taken, 0)
+
+#     return jsonify({
+#         "leavesTaken": leaves_taken,
+#         "leavesLeft": leaves_left,
+#         "pendingRequests": pending_days,
+#         "totalAllocated": total_allocated
+#     }), 200
+
 @employee_bp.route("/summary", methods=["GET"])
 @jwt_required()
 def employee_summary():
@@ -231,53 +301,72 @@ def employee_summary():
     total_allocated = 0
 
     months_since_join = (today.year - join_date.year) * 12 + today.month - join_date.month
+    probation_end = join_date + relativedelta(months=3)
 
-    if months_since_join < 3:
-        # 🚦 Still in probation
-        total_allocated = months_since_join * 1
-    elif months_since_join < 12:
-        # 🌓 Post-probation, quarterly accrual
+    # 📌 Step 1: Accrual Calculation
+    probation_pl = min(months_since_join, 3) * 1  # 1 PL/month in probation
+    post_probation_pl = 0
+    annual_pl = 0
+
+    if months_since_join >= 3:
         quarters_completed = (months_since_join - 3) // 3 + 1
-        total_allocated = quarters_completed * 5
-    else:
-        # 📅 After 1 year, 20 PLs for the calendar year
-        total_allocated = 20
+        post_probation_pl = quarters_completed * 5
 
-    # Fetch accepted + pending leaves
-    leave_logs = list(leave_col.find({"email": email}))
+    if months_since_join >= 12:
+        annual_pl = 20
 
-    pending_days = 0
+    # 📌 Step 2: Leave Taken
+    leave_logs = list(leave_col.find({"email": email, "status": {"$in": ["Accepted", "Approved"]}}))
+
     accepted_days = 0
-
     for leave in leave_logs:
-        from_date = leave.get("from_date")
-        to_date = leave.get("to_date")
-        status = leave.get("status")
+        try:
+            start = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
+            end = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
+            accepted_days += (end - start).days + 1
+        except:
+            pass
 
-        if from_date and to_date:
+    # 📌 Step 3: Probation Leave Expiry Handling
+    if today > probation_end:
+        # Get how many leaves were taken **during probation**
+        probation_taken = 0
+        for leave in leave_logs:
             try:
-                start = datetime.strptime(from_date, "%Y-%m-%d").date()
-                end = datetime.strptime(to_date, "%Y-%m-%d").date()
-                num_days = (end - start).days + 1
-            except Exception:
-                num_days = 0
-        else:
-            num_days = 0
+                start = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
+                end = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
+                if end <= probation_end:
+                    probation_taken += (end - start).days + 1
+            except:
+                pass
 
-        if status == "Pending":
-            pending_days += num_days
-        elif status == "Accepted":
-            accepted_days += num_days
+        expired_probation_pl = max(0, probation_pl - probation_taken)
+    else:
+        expired_probation_pl = 0
 
-    leaves_taken = accepted_days
-    leaves_left = max(total_allocated - leaves_taken, 0)
+    # 📌 Step 4: Final Allocation
+    total_allocated = probation_pl + post_probation_pl + annual_pl - expired_probation_pl
+    leaves_left = max(total_allocated - accepted_days, 0)
+
+    # 📌 Pending Requests
+    pending_days = 0
+    pending_logs = list(leave_col.find({"email": email, "status": "Pending"}))
+    for leave in pending_logs:
+        try:
+            start = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
+            end = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
+            pending_days += (end - start).days + 1
+        except:
+            pass
 
     return jsonify({
-        "leavesTaken": leaves_taken,
+        "leavesTaken": accepted_days,
         "leavesLeft": leaves_left,
         "pendingRequests": pending_days,
-        "totalAllocated": total_allocated
+        "totalAllocated": total_allocated,
+        "expiredProbationLeaves": expired_probation_pl
     }), 200
+
 
 
 # @employee_bp.route("/holidays", methods=["GET"])
