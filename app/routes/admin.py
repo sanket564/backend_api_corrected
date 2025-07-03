@@ -389,6 +389,7 @@ def get_all_employees():
 #         # log["Status"] already exists and will be sent as-is
 
 #     return jsonify(logs), 200
+
 @admin_bp.route("/biometric-logs", methods=["GET"])
 @jwt_required()
 def get_biometric_logs():
@@ -406,32 +407,16 @@ def get_biometric_logs():
     date_filter = request.args.get("date")
     employee_id = request.args.get("employee_id")
 
-    # if date_filter:
-    #     try:
-    #         datetime.strptime(date_filter, "%Y-%m-%d")
-    #         query["AttendanceDate"] = date_filter
-    #     except ValueError:
-    #         return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
-    # if date_filter:
-    #    try:
-    #     # Convert "2025-06-26" to "Thu, 26 Jun 2025 00:00:00 GMT"
-    #     date_obj = datetime.strptime(date_filter, "%Y-%m-%d")
-    #     formatted_date = date_obj.strftime("%a, %d %b %Y 00:00:00 GMT")
-    #     query["AttendanceDate"] = formatted_date
-    #    except ValueError:
-    #     return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
     if date_filter:
-       try:
-        target_date = datetime.strptime(date_filter, "%Y-%m-%d")
-        next_date = target_date + timedelta(days=1)
-        query["AttendanceDate"] = {
-            "$gte": target_date,
-            "$lt": next_date
-        }
-       except ValueError:
-        return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
-
-
+        try:
+            target_date = datetime.strptime(date_filter, "%Y-%m-%d")
+            next_date = target_date + timedelta(days=1)
+            query["AttendanceDate"] = {
+                "$gte": target_date,
+                "$lt": next_date
+            }
+        except ValueError:
+            return jsonify({"msg": "Invalid date format. Use YYYY-MM-DD."}), 400
 
     if employee_id:
         try:
