@@ -9,7 +9,7 @@ from app.routes.leave import leave_bp
 from app.routes.employee import employee_bp
 from app.routes.success import success_bp
 from app.routes.manager import manager_bp
-from app.routes.test_mail import test_mail_bp  # ✅ import
+from app.routes.test_mail import test_mail_bp  #  import
 
 def create_app():
     app = Flask(__name__)

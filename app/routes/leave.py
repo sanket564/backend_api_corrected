@@ -283,6 +283,73 @@ leave_bp = Blueprint("leave", __name__)
 
 #     return jsonify({"msg": "Leave request submitted"}), 201
 
+# @leave_bp.route("/request", methods=["POST"])
+# @jwt_required()
+# def request_leave():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     leave_requests = mongo.db.leave_requests
+#     leave_balances = mongo.db.leave_balances
+#     data = request.get_json()
+
+#     from_date = data.get("from_date")
+#     to_date = data.get("to_date")
+#     reason = data.get("reason")
+
+#     if not from_date or not to_date or not reason:
+#         return jsonify({"msg": "From date, to date, and reason are required"}), 400
+
+#     # Prevent overlapping requests
+#     existing = leave_requests.find_one({
+#         "email": email,
+#         "$or": [
+#             {"from_date": {"$lte": to_date}, "to_date": {"$gte": from_date}}
+#         ]
+#     })
+#     if existing:
+#         return jsonify({"msg": "Leave request already exists for this range"}), 409
+
+#     # Determine number of days
+#     start = datetime.strptime(from_date, "%Y-%m-%d").date()
+#     end = datetime.strptime(to_date, "%Y-%m-%d").date()
+#     num_days = (end - start).days + 1
+
+#     # Determine leave type (paid/LOP)
+#     balance_rec = leave_balances.find_one({"email": email})
+#     current_balance = balance_rec.get("pl_balance", 0) if balance_rec else 0
+
+#     leave_type = "Paid" if current_balance >= num_days else "LOP"
+
+#     user = users_col.find_one({"email": email})
+#     approver_chain = user.get("reporting_to", [])
+#     current_approver = approver_chain[0] if approver_chain else None
+
+#     leave_requests.insert_one({
+#         "email": email,
+#         "from_date": from_date,
+#         "to_date": to_date,
+#         "reason": reason,
+#         "status": "Pending",
+#         "leave_type": leave_type,
+#         "approver_chain": approver_chain,
+#         "current_approver": current_approver,
+#         "approval_logs": [],
+#         "submitted_at": datetime.now()
+#     })
+
+#     return jsonify({"msg": "Leave request submitted"}), 201
+
+from datetime import datetime, timedelta
+
+def calculate_weekdays_only(start, end):
+    count = 0
+    current = start
+    while current <= end:
+        if current.weekday() < 5:  # 0 = Monday, 4 = Friday
+            count += 1
+        current += timedelta(days=1)
+    return count
+
 @leave_bp.route("/request", methods=["POST"])
 @jwt_required()
 def request_leave():
@@ -309,15 +376,17 @@ def request_leave():
     if existing:
         return jsonify({"msg": "Leave request already exists for this range"}), 409
 
-    # Determine number of days
+    # Calculate working days only (exclude weekends)
     start = datetime.strptime(from_date, "%Y-%m-%d").date()
     end = datetime.strptime(to_date, "%Y-%m-%d").date()
-    num_days = (end - start).days + 1
+    num_days = calculate_weekdays_only(start, end)
 
-    # Determine leave type (paid/LOP)
+    if num_days <= 0:
+        return jsonify({"msg": "No valid working days selected"}), 400
+
+    # Determine leave type
     balance_rec = leave_balances.find_one({"email": email})
     current_balance = balance_rec.get("pl_balance", 0) if balance_rec else 0
-
     leave_type = "Paid" if current_balance >= num_days else "LOP"
 
     user = users_col.find_one({"email": email})
@@ -331,13 +400,19 @@ def request_leave():
         "reason": reason,
         "status": "Pending",
         "leave_type": leave_type,
+        "days_applied": num_days,  # ✅ Save actual leave days
         "approver_chain": approver_chain,
         "current_approver": current_approver,
         "approval_logs": [],
         "submitted_at": datetime.now()
     })
 
-    return jsonify({"msg": "Leave request submitted"}), 201
+    return jsonify({
+        "msg": "Leave request submitted",
+        "leave_type": leave_type,
+        "days_applied": num_days
+    }), 201
+
 
 
 # @leave_bp.route("/my-requests", methods=["GET"])
