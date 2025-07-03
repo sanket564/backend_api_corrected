@@ -12,7 +12,7 @@ from app.extensions import mongo
 from app.utils.notification_utils import create_notification
 from app.utils.notifier import send_notification_email
 from datetime import datetime, timedelta
-
+from collections import defaultdict
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -80,6 +80,51 @@ def get_employees():
         return jsonify({"msg": "Employee not found"}), 404
 
     return jsonify(employees), 200
+
+def get_week_range(date):
+    start = date - timedelta(days=date.weekday())  # Monday
+    end = start + timedelta(days=6)
+    return start, end
+
+
+@biometric_bp.route("/biometric/weekly-underworked", methods=["GET"])
+@jwt_required()
+def get_weekly_underworked_employees():
+    attendance_col = mongo.db.biometric_logs  # or your attendance collection
+
+    today = datetime.utcnow()
+    start_of_week, end_of_week = get_week_range(today)
+
+    # Convert to ISO format
+    start_iso = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_iso = end_of_week.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    # Fetch attendance within the week
+    records = attendance_col.find({
+        "AttendanceDate": {
+            "$gte": start_iso,
+            "$lte": end_iso
+        },
+        "Status": "Present"
+    })
+
+    employee_minutes = defaultdict(int)
+
+    for rec in records:
+        emp_id = rec.get("EmployeeId")
+        duration = rec.get("Duration", 0)
+        employee_minutes[emp_id] += duration
+
+    result = []
+    for emp_id, total_minutes in employee_minutes.items():
+        if total_minutes < 2700:  # Less than 45 hours
+            result.append({
+                "EmployeeId": emp_id,
+                "TotalHours": round(total_minutes / 60, 2)
+            })
+
+    return jsonify(result), 200
+
 
 
 @admin_bp.route("/recalculate-leaves", methods=["POST"])
