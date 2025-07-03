@@ -87,7 +87,7 @@ def get_week_range(date):
     return start, end
 
 
-@biometric_bp.route("/biometric/weekly-underworked", methods=["GET"])
+@admin_bp.route("/biometric/weekly-underworked", methods=["GET"])
 @jwt_required()
 def get_weekly_underworked_employees():
     attendance_col = mongo.db.biometric_logs  # or your attendance collection
