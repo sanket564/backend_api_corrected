@@ -20,6 +20,41 @@ def team_list():
 
     return jsonify(team), 200
 
+@manager_bp.route("/team/leave-history", methods=["GET"])
+@jwt_required()
+def team_leave_history():
+    manager_email = get_jwt_identity()
+    users_col = mongo.db.users
+    leave_col = mongo.db.leave_requests
+
+    # Step 1: Get team members under this manager
+    team_members = list(users_col.find({"reporting_to": manager_email}))
+    team_emails = [member["email"] for member in team_members]
+
+    if not team_emails:
+        return jsonify({"message": "No team members found"}), 200
+
+    # Step 2: Get leave history of team members
+    leave_records = list(leave_col.find({"email": {"$in": team_emails}}))
+
+    # Step 3: Map email to name
+    email_name_map = {m["email"]: m["name"] for m in team_members}
+
+    response = []
+    for leave in leave_records:
+        response.append({
+            "employee_name": email_name_map.get(leave["email"], "Unknown"),
+            "email": leave["email"],
+            "from_date": leave.get("from_date"),
+            "to_date": leave.get("to_date"),
+            "status": leave.get("status", "N/A"),
+            "reason": leave.get("reason", ""),
+            "leave_type": leave.get("leave_type", "N/A")
+        })
+
+    return jsonify(response), 200
+
+
 @manager_bp.route("/checkins/pending", methods=["GET"])
 @jwt_required()
 def manager_pending_checkins():
