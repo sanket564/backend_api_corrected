@@ -11,34 +11,6 @@ from app.utils.notifier import send_notification_email
 leave_bp = Blueprint("leave", __name__)
 
 
-@leave_bp.route("/leave/withdraw/<leave_id>", methods=["POST"])
-@jwt_required()
-def withdraw_leave(leave_id):
-    user_id = get_jwt_identity()
-    
-    leaves_col = mongo.db.leaves  # assuming MongoDB
-
-    leave = leaves_col.find_one({"_id": ObjectId(leave_id)})
-
-    if not leave:
-        return jsonify({"message": "Leave request not found"}), 404
-
-    if leave["employee_id"] != user_id:
-        return jsonify({"message": "You are not authorized to withdraw this leave"}), 403
-
-    if leave["status"] not in ["pending", "approved"]:
-        return jsonify({"message": "Cannot withdraw a leave in this status"}), 400
-
-    # update status to withdrawn
-    leaves_col.update_one(
-        {"_id": ObjectId(leave_id)},
-        {"$set": {"status": "withdrawn"}}
-    )
-
-    # optionally, you could credit back leave balance here
-    # or trigger a notification to HR/manager
-
-    return jsonify({"message": "Leave withdrawn successfully"}), 200
 
 
 
