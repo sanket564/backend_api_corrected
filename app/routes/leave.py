@@ -371,13 +371,75 @@ def calculate_weekdays_only(start, end):
         current += timedelta(days=1)
     return count
 
+# @leave_bp.route("/request", methods=["POST"])
+# @jwt_required()
+# def request_leave():
+#     email = get_jwt_identity()
+#     users_col = mongo.db.users
+#     leave_requests = mongo.db.leave_requests
+#     leave_balances = mongo.db.leave_balances
+#     data = request.get_json()
+
+#     from_date = data.get("from_date")
+#     to_date = data.get("to_date")
+#     reason = data.get("reason")
+
+#     if not from_date or not to_date or not reason:
+#         return jsonify({"msg": "From date, to date, and reason are required"}), 400
+
+#     # Prevent overlapping requests
+#     existing = leave_requests.find_one({
+#         "email": email,
+#         "$or": [
+#             {"from_date": {"$lte": to_date}, "to_date": {"$gte": from_date}}
+#         ]
+#     })
+#     if existing:
+#         return jsonify({"msg": "Leave request already exists for this range"}), 409
+
+#     # Calculate working days only (exclude weekends)
+#     start = datetime.strptime(from_date, "%Y-%m-%d").date()
+#     end = datetime.strptime(to_date, "%Y-%m-%d").date()
+#     num_days = calculate_weekdays_only(start, end)
+
+#     if num_days <= 0:
+#         return jsonify({"msg": "No valid working days selected"}), 400
+
+#     # Determine leave type
+#     balance_rec = leave_balances.find_one({"email": email})
+#     current_balance = balance_rec.get("pl_balance", 0) if balance_rec else 0
+#     leave_type = "Paid" if current_balance >= num_days else "LOP"
+
+#     user = users_col.find_one({"email": email})
+#     approver_chain = user.get("reporting_to", [])
+#     current_approver = approver_chain[0] if approver_chain else None
+
+#     leave_requests.insert_one({
+#         "email": email,
+#         "from_date": from_date,
+#         "to_date": to_date,
+#         "reason": reason,
+#         "status": "Pending",
+#         "leave_type": leave_type,
+#         "days_applied": num_days,  # ✅ Save actual leave days
+#         "approver_chain": approver_chain,
+#         "current_approver": current_approver,
+#         "approval_logs": [],
+#         "submitted_at": datetime.now()
+#     })
+
+#     return jsonify({
+#         "msg": "Leave request submitted",
+#         "leave_type": leave_type,
+#         "days_applied": num_days
+#     }), 201
+
 @leave_bp.route("/request", methods=["POST"])
 @jwt_required()
 def request_leave():
     email = get_jwt_identity()
     users_col = mongo.db.users
     leave_requests = mongo.db.leave_requests
-    leave_balances = mongo.db.leave_balances
     data = request.get_json()
 
     from_date = data.get("from_date")
@@ -405,12 +467,51 @@ def request_leave():
     if num_days <= 0:
         return jsonify({"msg": "No valid working days selected"}), 400
 
-    # Determine leave type
-    balance_rec = leave_balances.find_one({"email": email})
-    current_balance = balance_rec.get("pl_balance", 0) if balance_rec else 0
-    leave_type = "Paid" if current_balance >= num_days else "LOP"
-
+    # ✅ Fetch user and join date
     user = users_col.find_one({"email": email})
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    try:
+        join_date = datetime.strptime(user.get("join_date", ""), "%Y-%m-%d").date()
+    except:
+        return jsonify({"msg": "Invalid join date format"}), 400
+
+    today = datetime.today().date()
+    months_since_join = (today.year - join_date.year) * 12 + today.month - join_date.month
+    probation_end = join_date + relativedelta(months=3)
+
+    # 📌 Step 1: Accrual
+    probation_pl = min(months_since_join, 3) * 1
+    post_probation_pl = (months_since_join - 3) // 3 * 5 if months_since_join >= 3 else 0
+    annual_pl = 20 if months_since_join >= 12 else 0
+
+    # 📌 Step 2: Approved leave days taken
+    leave_logs = list(leave_requests.find({"email": email, "status": {"$in": ["Accepted", "Approved"]}}))
+    accepted_days = 0
+    probation_taken = 0
+
+    for leave in leave_logs:
+        try:
+            l_start = datetime.strptime(leave["from_date"], "%Y-%m-%d").date()
+            l_end = datetime.strptime(leave["to_date"], "%Y-%m-%d").date()
+            days = (l_end - l_start).days + 1
+            accepted_days += days
+            if l_end <= probation_end:
+                probation_taken += days
+        except:
+            pass
+
+    expired_probation_pl = max(0, probation_pl - probation_taken) if today > probation_end else 0
+
+    # 📌 Step 3: Available balance
+    total_allocated = probation_pl + post_probation_pl + annual_pl - expired_probation_pl
+    leaves_left = max(total_allocated - accepted_days, 0)
+
+    # ✅ Determine leave type dynamically
+    leave_type = "Paid" if leaves_left >= num_days else "LOP"
+
+    # ✅ Approval chain
     approver_chain = user.get("reporting_to", [])
     current_approver = approver_chain[0] if approver_chain else None
 
@@ -421,7 +522,7 @@ def request_leave():
         "reason": reason,
         "status": "Pending",
         "leave_type": leave_type,
-        "days_applied": num_days,  # ✅ Save actual leave days
+        "days_applied": num_days,
         "approver_chain": approver_chain,
         "current_approver": current_approver,
         "approval_logs": [],
@@ -433,6 +534,7 @@ def request_leave():
         "leave_type": leave_type,
         "days_applied": num_days
     }), 201
+
 
 
 
