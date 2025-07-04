@@ -9,9 +9,6 @@ from dateutil.relativedelta import relativedelta
 
 employee_bp = Blueprint("employee", __name__)  
 
-
-
-
 @employee_bp.route("/profile", methods=["GET"])
 @jwt_required()
 def employee_profile():
@@ -132,8 +129,6 @@ def get_employee_holidays():
     holidays = list(holidays_col.find({}, {"_id": 0, "date": 1, "name": 1}).sort("date", 1))
 
     return jsonify(holidays), 200
-
-
 
 
 @employee_bp.route("/update-profile", methods=["PUT"])
