@@ -13,25 +13,19 @@ leave_bp = Blueprint("leave", __name__)
 @leave_bp.route("/withdraw/<leave_id>", methods=["DELETE"])
 @jwt_required()
 def withdraw_leave(leave_id):
-    user_id = get_jwt_identity()
-    leave_col = mongo.db.leave_requests
+    user_email = get_jwt_identity()  # This is the email from JWT
 
+    leave_col = mongo.db.leave_requests
     leave = leave_col.find_one({"_id": ObjectId(leave_id)})
 
     if not leave:
         return jsonify({"error": "Leave not found"}), 404
 
-    # ✅ Only the person who applied for leave can withdraw
-    if str(leave["employee_id"]) != user_id:
+    # ✅ Compare with email instead of employee_id
+    if leave.get("email") != user_email:
         return jsonify({"error": "Unauthorized"}), 403
 
     leave_col.delete_one({"_id": ObjectId(leave_id)})
-
-    create_notification(
-        user_id=leave["employee_id"],
-        title="Leave Withdrawn",
-        message=f"Your leave from {leave['from_date']} to {leave['to_date']} was withdrawn."
-    )
 
     return jsonify({"message": "Leave withdrawn successfully."}), 200
 
