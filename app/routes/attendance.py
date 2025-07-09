@@ -810,17 +810,64 @@ def checkout():
 #                 log[k] = val_ist.strftime("%d-%m-%Y %I:%M %p")
 
 #     return jsonify(logs), 200
+# @attendance_bp.route('/history', methods=['GET'])
+# @jwt_required()
+# def attendance_history():
+#     logs_col = mongo.db.logs
+#     email = get_jwt_identity()
+#     india = timezone("Asia/Kolkata")
+
+#     logs = list(logs_col.find({"email": email}).sort("date", -1))
+
+#     for log in logs:
+#         log["_id"] = str(log["_id"])
+#         checkin_time = log.get("checkin")
+#         checkout_time = log.get("checkout")
+
+#         checkin_ist = checkout_ist = None
+
+#         for k in ("checkin", "checkout"):
+#             val = log.get(k)
+#             if isinstance(val, datetime):
+#                 if val.tzinfo is None:
+#                     val = utc.localize(val)
+#                 val_ist = val.astimezone(india)
+#                 log[k] = val_ist.strftime("%d-%m-%Y %I:%M %p")
+
+#                 if k == "checkin":
+#                     checkin_ist = val_ist
+#                 elif k == "checkout":
+#                     checkout_ist = val_ist
+
+#         # Calculate hours worked if both checkin and checkout exist
+#         if checkin_ist and checkout_ist:
+#             duration = checkout_ist - checkin_ist
+#             hours_worked = round(duration.total_seconds() / 3600, 2)
+#             log["hours_worked"] = hours_worked
+#         else:
+#             log["hours_worked"] = None
+
+#     return jsonify(logs), 200
+
 @attendance_bp.route('/history', methods=['GET'])
 @jwt_required()
 def attendance_history():
     logs_col = mongo.db.logs
+    pending_checkins_col = mongo.db.pending_checkins
     email = get_jwt_identity()
     india = timezone("Asia/Kolkata")
 
+    # Approved logs
     logs = list(logs_col.find({"email": email}).sort("date", -1))
+    history = []
 
     for log in logs:
-        log["_id"] = str(log["_id"])
+        log_entry = {
+            "_id": str(log["_id"]),
+            "date": log["date"],
+            "status": "Approved"
+        }
+
         checkin_time = log.get("checkin")
         checkout_time = log.get("checkout")
 
@@ -832,22 +879,44 @@ def attendance_history():
                 if val.tzinfo is None:
                     val = utc.localize(val)
                 val_ist = val.astimezone(india)
-                log[k] = val_ist.strftime("%d-%m-%Y %I:%M %p")
+                log_entry[k] = val_ist.strftime("%d-%m-%Y %I:%M %p")
 
                 if k == "checkin":
                     checkin_ist = val_ist
                 elif k == "checkout":
                     checkout_ist = val_ist
 
-        # Calculate hours worked if both checkin and checkout exist
         if checkin_ist and checkout_ist:
             duration = checkout_ist - checkin_ist
-            hours_worked = round(duration.total_seconds() / 3600, 2)
-            log["hours_worked"] = hours_worked
+            log_entry["hours_worked"] = round(duration.total_seconds() / 3600, 2)
         else:
-            log["hours_worked"] = None
+            log_entry["hours_worked"] = None
 
-    return jsonify(logs), 200
+        history.append(log_entry)
+
+    # Pending check-ins
+    pending_logs = list(pending_checkins_col.find({"email": email, "status": "Pending"}))
+    for pending in pending_logs:
+        requested_at = pending.get("requested_at")
+        if requested_at.tzinfo is None:
+            requested_at = utc.localize(requested_at)
+
+        checkin_ist = requested_at.astimezone(india)
+
+        history.append({
+            "_id": str(pending["_id"]),
+            "date": pending["date"],
+            "checkin": checkin_ist.strftime("%d-%m-%Y %I:%M %p"),
+            "checkout": None,
+            "hours_worked": None,
+            "status": "Pending"
+        })
+
+    # Sort all by date descending
+    history.sort(key=lambda x: x["date"], reverse=True)
+
+    return jsonify(history), 200
+
 
 
 
