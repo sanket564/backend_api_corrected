@@ -164,6 +164,72 @@ attendance_bp = Blueprint("attendance", __name__)
 #     return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
 
 
+# @attendance_bp.route("/checkin", methods=["POST"])
+# @jwt_required()
+# def checkin():
+#     email = get_jwt_identity()
+#     data = request.get_json()
+#     print("📥 Received data in checkin route:", data)
+
+#     users_col = mongo.db.users
+#     logs_col = mongo.db.logs
+#     pending_checkins_col = mongo.db.pending_checkins
+
+#     if not data or 'datetime' not in data:
+#         return jsonify({"msg": "Missing datetime"}), 400
+
+#     # Convert to IST and UTC
+#     india = timezone("Asia/Kolkata")
+#     try:
+#         requested_datetime_ist = india.localize(datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M"))
+#     except ValueError:
+#         return jsonify({"msg": "Invalid datetime format"}), 400
+
+#     requested_datetime_utc = requested_datetime_ist.astimezone(utc)
+#     date_str = requested_datetime_ist.strftime('%Y-%m-%d')
+
+#     # Get user and DOJ
+#     user = users_col.find_one({"email": email})
+#     if not user:
+#         return jsonify({"msg": "User not found"}), 404
+
+#     try:
+#         doj = india.localize(datetime.strptime(user.get("join_date", ""), "%Y-%m-%d"))
+#     except:
+#         return jsonify({"msg": "Invalid or missing date of joining"}), 400
+
+#     # 🛑 Cannot check in before DOJ
+#     if requested_datetime_ist < doj:
+#         return jsonify({"msg": "You cannot check in before your date of joining."}), 400
+
+#     # 🛑 Check for existing check-in for today
+#     if logs_col.find_one({"email": email, "date": date_str}):
+#         return jsonify({"msg": "Already checked in on this day"}), 400
+
+#     # 🛑 Check for pending approval for today
+#     if pending_checkins_col.find_one({"email": email, "date": date_str, "status": "Pending"}):
+#         return jsonify({"msg": "Check-in request already submitted and awaiting approval"}), 400
+
+#     # 🛑 Check for previous day incomplete checkout
+#     previous_log = logs_col.find_one({
+#         "email": email,
+#         "checkin": {"$exists": True},
+#         "checkout": None,
+#         "date": {"$ne": date_str}
+#     })
+#     if previous_log:
+#         return jsonify({"msg": "You have a pending checkout from a previous day. Please Checkout."}), 400
+
+#     # ✅ Insert as pending check-in
+#     pending_checkins_col.insert_one({
+#         "email": email,
+#         "date": date_str,
+#         "requested_at": requested_datetime_utc,
+#         "status": "Pending"
+#     })
+
+#     return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
+
 @attendance_bp.route("/checkin", methods=["POST"])
 @jwt_required()
 def checkin():
@@ -178,7 +244,6 @@ def checkin():
     if not data or 'datetime' not in data:
         return jsonify({"msg": "Missing datetime"}), 400
 
-    # Convert to IST and UTC
     india = timezone("Asia/Kolkata")
     try:
         requested_datetime_ist = india.localize(datetime.strptime(data['datetime'], "%Y-%m-%dT%H:%M"))
@@ -188,7 +253,7 @@ def checkin():
     requested_datetime_utc = requested_datetime_ist.astimezone(utc)
     date_str = requested_datetime_ist.strftime('%Y-%m-%d')
 
-    # Get user and DOJ
+    # ✅ Get user and DOJ
     user = users_col.find_one({"email": email})
     if not user:
         return jsonify({"msg": "User not found"}), 404
@@ -198,19 +263,19 @@ def checkin():
     except:
         return jsonify({"msg": "Invalid or missing date of joining"}), 400
 
-    # 🛑 Cannot check in before DOJ
+    # ❌ Cannot check in before DOJ
     if requested_datetime_ist < doj:
         return jsonify({"msg": "You cannot check in before your date of joining."}), 400
 
-    # 🛑 Check for existing check-in for today
+    # ❌ Already approved check-in
     if logs_col.find_one({"email": email, "date": date_str}):
         return jsonify({"msg": "Already checked in on this day"}), 400
 
-    # 🛑 Check for pending approval for today
+    # ❌ Already submitted and pending
     if pending_checkins_col.find_one({"email": email, "date": date_str, "status": "Pending"}):
         return jsonify({"msg": "Check-in request already submitted and awaiting approval"}), 400
 
-    # 🛑 Check for previous day incomplete checkout
+    # ❌ Previous day incomplete checkout
     previous_log = logs_col.find_one({
         "email": email,
         "checkin": {"$exists": True},
@@ -218,9 +283,9 @@ def checkin():
         "date": {"$ne": date_str}
     })
     if previous_log:
-        return jsonify({"msg": "You have a pending checkout from a previous day. Please Checkout."}), 400
+        return jsonify({"msg": "You have a pending checkout from a previous day. Please checkout first."}), 400
 
-    # ✅ Insert as pending check-in
+    # ✅ Insert new pending check-in
     pending_checkins_col.insert_one({
         "email": email,
         "date": date_str,
@@ -229,9 +294,6 @@ def checkin():
     })
 
     return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
-
-
-
 
 
 # @attendance_bp.route("/checkout", methods=["POST"])
