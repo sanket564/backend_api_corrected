@@ -239,7 +239,6 @@ def checkin():
 
     users_col = mongo.db.users
     logs_col = mongo.db.logs
-    pending_checkins_col = mongo.db.pending_checkins
 
     if not data or 'datetime' not in data:
         return jsonify({"msg": "Missing datetime"}), 400
@@ -267,13 +266,9 @@ def checkin():
     if requested_datetime_ist < doj:
         return jsonify({"msg": "You cannot check in before your date of joining."}), 400
 
-    # ❌ Already approved check-in
+    # ❌ Already checked-in
     if logs_col.find_one({"email": email, "date": date_str}):
         return jsonify({"msg": "Already checked in on this day"}), 400
-
-    # ❌ Already submitted and pending
-    if pending_checkins_col.find_one({"email": email, "date": date_str, "status": "Pending"}):
-        return jsonify({"msg": "Check-in request already submitted and awaiting approval"}), 400
 
     # ❌ Previous day incomplete checkout
     previous_log = logs_col.find_one({
@@ -285,15 +280,15 @@ def checkin():
     if previous_log:
         return jsonify({"msg": "You have a pending checkout from a previous day. Please checkout first."}), 400
 
-    # ✅ Insert new pending check-in
-    pending_checkins_col.insert_one({
+    # ✅ Directly insert into logs (bypass approval)
+    logs_col.insert_one({
         "email": email,
         "date": date_str,
-        "requested_at": requested_datetime_utc,
-        "status": "Pending"
+        "checkin": requested_datetime_utc,
+        "checkout": None
     })
 
-    return jsonify({"msg": "Check-in request submitted. Awaiting admin approval."}), 200
+    return jsonify({"msg": "Check-in successful"}), 200
 
 
 # @attendance_bp.route("/checkout", methods=["POST"])
@@ -624,6 +619,7 @@ def checkin():
 #     )
 
 #     return jsonify({"msg": "Checked out successfully"}), 200
+
 @attendance_bp.route("/checkout", methods=["POST"])
 @jwt_required()
 def checkout():
