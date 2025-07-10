@@ -97,7 +97,8 @@ def employee_summary():
 
     # 📌 Step 4: Final Allocation
     total_allocated = probation_pl + post_probation_pl + annual_pl - expired_probation_pl
-    leaves_left = max(total_allocated - accepted_days, 0)
+    leaves_left = max(total_allocated - accepted_days - pending_days, 0)
+
 
     # 📌 Pending Requests
     pending_days = 0
